@@ -1,11 +1,21 @@
 const mediaSelector='img,picture,video,audio,canvas,iframe,object,embed';
+let indexedRoot,candidates,observer;
+
+export function resetSelectionPaint(){observer?.disconnect();observer=undefined;indexedRoot=undefined;candidates=undefined;}
+function mediaElements(root){
+ const query=()=>[...(root?.matches?.(mediaSelector)?[root]:[]),...(root?.querySelectorAll?.(mediaSelector)||[])];
+ if(!root||typeof MutationObserver!=='function')return query();
+ if(root!==indexedRoot){
+  resetSelectionPaint();indexedRoot=root;observer=new MutationObserver(()=>{candidates=undefined;});observer.observe(root,{childList:true,subtree:true});
+ }else if(observer.takeRecords().length)candidates=undefined;
+ return candidates??=query();
+}
 
 // Keep the real Selection intact. Text paint skips media; media use an outline.
 export function selectionPaint(range){
  const root=range.commonAncestorContainer?.nodeType===1?range.commonAncestorContainer:range.commonAncestorContainer?.parentElement;
  const excluded=[],media=[];
- const elements=[...(root?.matches?.(mediaSelector)?[root]:[]),...(root?.querySelectorAll?.(mediaSelector)||[])];
- for(const element of elements){
+ for(const element of mediaElements(root)){
   if(!range.intersectsNode(element))continue;
   if(!excluded.some(parent=>parent.contains(element)))excluded.push(element);
   // picture is an inline container. Outline its rendered img rather than the

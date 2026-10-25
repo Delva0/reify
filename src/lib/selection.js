@@ -1,21 +1,23 @@
-import {selectionPaint} from './selection-paint.js';
+import {selectionPaint,resetSelectionPaint} from './selection-paint.js';
 
 let retained,paint,selectedMedia=new Set();
 const supported=()=>Boolean(globalThis.CSS?.highlights&&typeof Highlight==='function');
 export const sameRange=(a,b)=>a&&b&&a.startContainer===b.startContainer&&a.startOffset===b.startOffset&&a.endContainer===b.endContainer&&a.endOffset===b.endOffset;
 function draw(range){
  if(!supported())return;
+ if(!range)resetSelectionPaint();
  const {ranges,media}=range?selectionPaint(range):{ranges:[],media:[]},next=new Set(media);
  for(const element of selectedMedia)if(!next.has(element))element.classList.remove('selection-media');
  for(const element of next)if(!selectedMedia.has(element))element.classList.add('selection-media');
  selectedMedia=next;
- if(range)CSS.highlights.set('reader-selection',new Highlight(...ranges));else CSS.highlights.delete('reader-selection');
- document.documentElement.classList.toggle('selection-painted',Boolean(range));
+ const custom=Boolean(range&&(retained||media.length));
+ if(custom)CSS.highlights.set('reader-selection',new Highlight(...ranges));else CSS.highlights.delete('reader-selection');
+ document.documentElement.classList.toggle('selection-painted',custom);
 }
 export function retainSelection(range){
  if(!supported())return;
- retained=sameRange(paint,range)?paint:range.cloneRange();
- if(retained!==paint){paint=retained;draw(paint);}
+ const next=sameRange(paint,range)?paint:range.cloneRange();if(retained===next)return;
+ retained=paint=next;draw(paint);
 }
 export function releaseSelection(){retained=undefined;paint=undefined;draw();}
 export function initSelection(){
