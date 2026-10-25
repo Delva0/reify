@@ -1,6 +1,6 @@
 import {readRepositoryTree} from '../lib/github-files.js';
 import {codeHref} from '../lib/code-links.js';
-import {codeDistribution,share,distributionTip} from '../lib/code-distribution.js';
+import {codeDistribution,share,distributionTip,compactLines} from '../lib/code-distribution.js';
 import {fileBrowserStateKey,readFileBrowserState,saveFileBrowserState} from '../lib/file-browser-state.js';
 import {formatLineRanges,isWebFile} from '../lib/code-props.js';
 import {markLink} from '../lib/links.js';
@@ -50,8 +50,8 @@ export function initGitHubFiles(){
 
  function renderLanguages(){
   const fragment=document.createDocumentFragment();
-  for(const {language}of [{language:''},...distribution.languages]){
-   const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.dataset.language=language;option.setAttribute('aria-selected',String((selectedLanguage||'')===language));option.textContent=language||'无';fragment.append(option);
+  for(const {language}of distribution.languages){
+   const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.dataset.language=language;option.setAttribute('aria-selected',String(selectedLanguage===language));option.setAttribute('data-tip-overflow','');option.textContent=language;fragment.append(option);
   }
   languageMenu.replaceChildren(fragment);
  }
@@ -69,6 +69,7 @@ export function initGitHubFiles(){
  }
  function updateDistribution(){
   languageTrigger.setAttribute('aria-pressed',String(!!selectedLanguage));languageTrigger.setAttribute('aria-label',selectedLanguage?'代码分布，当前 '+selectedLanguage:'代码分布');
+  languageTrigger.dataset.tip=selectedLanguage?'代码分布\n'+selectedLanguage+' '+compactLines(distribution.lines('',selectedLanguage)):'代码分布';
   for(const row of panel.querySelectorAll('.github-file-row'))updateRow(row);
   for(const option of languageMenu.querySelectorAll('[role=option]'))option.setAttribute('aria-selected',String(option.dataset.language===(selectedLanguage||'')));
  }

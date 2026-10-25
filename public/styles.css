@@ -193,8 +193,8 @@ td code{font-size:12px}
 .language-picker .version-trigger{min-width:var(--control-size);width:var(--control-size);border-color:transparent;padding:5px;color:var(--muted)}
 .language-picker .version-trigger svg{width:16px;height:16px}
 .language-picker .version-trigger:disabled{opacity:.45;cursor:default}
-.language-menu{width:max-content;max-width:calc(100vw - 32px);z-index:40;max-height:360px;font-size:12px}
-.language-menu button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:28px;padding:4px 8px;border:0;text-align:left;background:transparent;color:var(--muted);font:inherit;white-space:nowrap}
+.language-picker>.language-menu{display:grid;grid-template-columns:minmax(0,max-content);width:max-content;min-width:0;max-width:min(16ch,calc(100vw - 32px));z-index:40;max-height:360px;font-size:12px}
+.language-menu button{display:block;width:auto;min-width:0;min-height:28px;padding:4px 8px;border:0;text-align:left;background:transparent;color:var(--muted);font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .language-menu button:hover,.language-menu [aria-selected=true]{background:var(--active);color:var(--active-ink)}
 .github-files>.tree-resize-handle{position:absolute;left:-4px;top:0;bottom:0}
 .github-file-row{position:relative;display:grid;grid-template-columns:14px minmax(0,1fr);align-items:start;gap:var(--tree-gap);width:100%;min-height:24px;padding:2px 4px 0;border:0;background:transparent;color:var(--muted);text-align:left;text-decoration:none;font:11px/20px var(--mono)}

@@ -20,5 +20,5 @@ export const compactLines=lines=>compact.format(lines);
 export function distributionTip(path,{truncated=false,active=false,lines=0,percentage=0}={}){
  const statistics=active&&lines>0;
  if(!truncated&&!statistics)return '';
- return [truncated?path:'',statistics?compactLines(lines)+'行 '+Math.round(percentage)+'%':''].filter(Boolean).join('\n');
+ return [truncated?path:'',statistics?compactLines(lines)+' '+Math.round(percentage)+'%':''].filter(Boolean).join('\n');
 }

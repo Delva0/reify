@@ -32,8 +32,8 @@ const names=codeDistribution(new Map([['',[{path:'Dockerfile',type:'blob',lines:
 assert.deepEqual(names.languages.map(item=>item.language),['Dockerfile','.gitignore','.xyz']);
 assert.equal(distributionTip('a.cpp'),'');
 assert.equal(distributionTip('long-name.cpp',{truncated:true}),'long-name.cpp');
-assert.equal(distributionTip('a.cpp',{active:true,lines:1330,percentage:30}),'1.33K行 30%');
-assert.equal(distributionTip('long.cpp',{truncated:true,active:true,lines:1330,percentage:30}),'long.cpp\n1.33K行 30%');
+assert.equal(distributionTip('a.cpp',{active:true,lines:1330,percentage:30}),'1.33K 30%');
+assert.equal(distributionTip('long.cpp',{truncated:true,active:true,lines:1330,percentage:30}),'long.cpp\n1.33K 30%');
 assert.equal(distributionTip('zero.cpp',{active:true,lines:0}),'');
 assert.equal(distributionTip('long-zero.cpp',{truncated:true,active:true,lines:0}),'long-zero.cpp');
 console.log('Code distribution: language inventory, ancestor aggregation, parent-relative line widths, empty and unrecognized files passed');
