@@ -10,12 +10,13 @@ import {sidebarBootstrap} from '../lib/sidebar-state.js';
 import {prepareArticlePages} from '../build/article-pages.mjs';
 import {prepareArticleResources} from '../build/file-resources.mjs';
 import {prepareWebDocuments} from '../build/web-documents.mjs';
+import {prepareArticleSource} from '../build/article-sources.mjs';
 import {articlePageBootstrap,serializeArticlePages} from '../lib/article-pages.js';
 import {readingContent} from '../lib/reading-content.js';
 const {repository,version,navigation,base,pageIndex=0,source,current,site}=Astro.props;
 const article=await prepareArticlePages(base,()=>Astro.slots.render('default'),base,!import.meta.env.DEV),page=article.pages[pageIndex];
 if(!page)throw Error('H1 分页不存在：'+pageIndex);
-const manifest={...article.manifest,headings:page.headings};
+const manifest={...article.manifest,headings:page.headings,source:await prepareArticleSource(source,site)};
 const fileResources=await prepareArticleResources(page.references,Astro.url.pathname,article.blocks,article.manifest.anchors);
 await prepareWebDocuments([...page.references,...Object.values(article.blocks).flatMap(block=>block.links.map(link=>link.href))],Astro.url.pathname);
 ---

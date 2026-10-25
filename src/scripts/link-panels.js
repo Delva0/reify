@@ -4,7 +4,6 @@ import {linkPanelState,readingLinkState} from '../lib/link-panels.js';
 import {readingContext,setReadingContext} from '../lib/reading-context.js';
 import {markLink} from '../lib/links.js';
 import {notice} from '../lib/dom.js';
-import {setCodeText} from './code-controls.js';
 import {navigateDocumentAnchor} from './document-view.js';
 
 let initialized=false;
@@ -24,7 +23,6 @@ function openPage(props,context){
  const viewer=createCodeDialog(context),panel=viewer.panel,url=new URL(props.url,location.href);
  panel.dataset.pageViewer='loading';
  const title=panel.querySelector('[data-source-title]'),preview=panel.querySelector('[data-source-preview]');
- const copyText=()=>{const article=panel.querySelector('[data-document-content]>.document');if(article)setCodeText(panel,article.innerText);};
  const web=async revision=>{
   const {readWebDocument,mountWebDocument}=await import('./web-document.js'),resource=await readWebDocument(url.href);
   if(!viewer.alive(revision))return;
@@ -43,14 +41,17 @@ function openPage(props,context){
   try{
    if(url.origin!==location.origin){await web(current);return;}
    const {readArticleDocument}=await import('./article-document.js'),scope=await documentId(props.url,context.sessionId),article=await readArticleDocument(url.href,scope),id=scope.id;
+   if(!article.source)throw Error('文章源码未发布');
+   const response=await fetch(article.source.href);if(!response.ok)throw Error('文章源码读取失败（'+response.status+'）');
+   const text=await response.text(),{highlightSource}=await import('../lib/source-highlight.js');
+   const html=await highlightSource(text,article.source.language),pre=new DOMParser().parseFromString(html,'text/html').querySelector('pre');
+   pre.classList.add('astro-code');
    if(!viewer.alive(current))return;
    panel.dataset.pageViewer='article';setReadingContext(panel,article.context);setReadingContext(article.view,article.context);article.view.dataset.readingScope=id;
-   viewer.update({title:article.title,text:'',documentView:article.view});
-   panel.querySelector('[data-code-copy]').setAttribute('aria-label','复制文本');copyText();
+   viewer.update({title:article.title,pre,sourceFile:article.source.file,documentView:article.view});
    await positionArticleDocument(panel,article,context);
   }catch(error){if(!viewer.alive(current))return;if(error.message==='目标不是文章页面')await web(current);else viewer.update({title:url.hostname,message:error.message||'网页暂时无法读取',retry:load});}
  };
- panel.addEventListener('documentpagechange',copyText);
  viewer.ready=load();return viewer;
 }
 

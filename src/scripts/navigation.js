@@ -2,7 +2,7 @@ import {$,$$,closest,svg} from '../lib/dom.js';
 import {floatingLayer,registerFloatingPanel,unregisterFloatingPanel,raiseFloatingPanel} from './floating-panels.js';
 import {initSidebar} from './sidebars.js';
 import {canonicalArticlePath} from '../lib/article-pages.js';
-import {toggleTreeBranch,registerTreeRoot} from './tree-branches.js';
+import {toggleTreeBranch,registerTreeRoot,registerPersistentTreeBranches} from './tree-branches.js';
 import {bindReadingOutline} from './reading-outline.js';
 const dropdowns=new WeakMap(),selects=new WeakSet(),themes=new WeakSet(),trees=new WeakMap();
 let initialized=false,readingOutline;
@@ -54,6 +54,7 @@ function initTheme(){
 function initTree(){
  const tree=$('.repo-tree');if(!tree)return;const sidebar=initSidebar('repository');
  registerTreeRoot($('[data-tree-root-toggle]',tree),$('#repository-tree-root',tree),{key:'tree-root:repository'});
+ registerPersistentTreeBranches(tree);
  if(trees.has(tree)){trees.get(tree).sidebar=sidebar;return;}const binding={sidebar};trees.set(tree,binding);
  tree.addEventListener('click',event=>{const button=closest(event,'button.tree-branch,button.tree-repository');if(button&&!button.hasAttribute('data-tree-root-toggle'))toggleTreeBranch(button,event);if(closest(event,'a'))binding.sidebar.closeOverlay();});
 }

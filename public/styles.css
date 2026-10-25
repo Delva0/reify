@@ -241,7 +241,7 @@ dialog[data-modal=false]>[data-source-code],dialog[data-modal=false]>[data-sourc
 [data-source-preview] p:only-child{margin:0}
 [data-source-preview] img{display:block;max-width:100%;height:auto;margin:auto}
 [data-source-preview] button{margin-left:12px}
-[data-page-viewer=article] [data-code-document],[data-page-viewer=web] [data-code-document],[data-page-viewer=web] [data-code-copy],[data-page-viewer=web] [data-code-wrap],[data-page-viewer=web]>[data-source-code]{display:none!important}
+[data-page-viewer=web] [data-code-document],[data-page-viewer=web] [data-code-copy],[data-page-viewer=web] [data-code-wrap],[data-page-viewer=web]>[data-source-code]{display:none!important}
 [data-page-viewer=web]>[data-source-preview]{height:calc(var(--panel-max-height) - var(--dialog-bar-height) - 2px);padding:0;overflow:hidden}
 [data-page-viewer=web] iframe{display:block;width:100%;height:100%;border:0;background:var(--paper)}
 .dialog-head [data-page-address]{text-decoration:none;color:inherit}

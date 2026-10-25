@@ -74,7 +74,7 @@ export function webDocumentHtml(resource,{token,nonce,theme,engine,anchor,scroll
  const root=parse(resource.html),head=all(root,node=>node.tagName==='head')[0],body=all(root,node=>node.tagName==='body')[0];
  const policy=`default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline' https: http:; img-src https: http: data: blob:; font-src https: http: data:; connect-src https: http: data:; media-src https: http: blob:`;
  head.childNodes.unshift(element('meta',{'http-equiv':'Content-Security-Policy',content:policy}));
- head.childNodes.push(element('script',{src:engine,nonce}));
+ head.childNodes.push(element('script',{src:engine,nonce,async:'','data-reify-theme-engine':''}));
  const configuration=JSON.stringify({token,theme,anchor,scrollbars}).replace(/</g,'\\u003c');
  body.childNodes.push(element('script',{nonce},'('+webDocumentBootstrap.toString()+')('+configuration+');'));
  return serialize(root);

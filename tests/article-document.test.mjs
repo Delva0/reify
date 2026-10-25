@@ -39,7 +39,7 @@ function parsedDocument(html){
  return document;
 }
 
-const manifest={pages:[{id:'a',title:'First',href:'article.html'},{id:'b',title:'Second',href:'article-page-2.html'}],anchors:{a:'article.html',a3:'article.html',local:'article.html',b:'article-page-2.html',bcode:'article-page-2.html','core-modes':'article-page-2.html'}};
+const manifest={source:{href:'/data/article-sources/'+('a'.repeat(64))+'.mdx',language:'mdx',file:'content/article.mdx'},pages:[{id:'a',title:'First',href:'article.html'},{id:'b',title:'Second',href:'article-page-2.html'}],anchors:{a:'article.html',a3:'article.html',local:'article.html',b:'article-page-2.html',bcode:'article-page-2.html','core-modes':'article-page-2.html'}};
 const tree='<aside class="repo-tree"><ul><li><a href="article.html#a" data-heading="a">First</a><ul><li><a href="article.html#a3" data-heading="a3">Exact H3</a></li></ul></li><li><a href="article-page-2.html#b" data-heading="b">Second</a></li><li><a href="unrelated.html#other" data-heading="other">Other article</a></li></ul></aside>';
 const block={id:'local',src:'src/kernel.cu',language:'cuda',links:[]};
 const first='<h1 id="a">First</h1><h3 id="a3">Exact H3</h3><span class="katex">formula</span><pre style="--shiki-dark:white"><code>code</code></pre><a href="article-page-2.html#b">Next</a><a href="?fp=code&amp;block=bcode">Code</a><img src="images/model.svg"><template id="local" data-code-definition=\''+JSON.stringify(block)+'\'></template>';
@@ -54,6 +54,7 @@ try{
  const result=await readArticleDocument('https://wiki.test/article.html',{id:'panel',referencePrefix:'stable'});
  const data=JSON.parse(result.view.dataset.documentData);
  assert.equal(result.title,'First');assert.equal(result.anchor,null);
+ assert.deepEqual(result.source,{...manifest.source,href:'https://wiki.test'+manifest.source.href},'the viewer receives the original MDX descriptor, not rendered article text');
  assert.deepEqual(result.context,{repository:'repo',repositoryName:'owner/project',commit:'abc123',mdxFile:'content/article.mdx',url:'https://wiki.test/article.html',title:'First'});
  assert.equal(data.currentPage,0);assert.equal(data.pages.length,2);assert.equal(data.pages[1].html,undefined);
  assert.deepEqual(requests,['https://wiki.test/article.html'],'opening one H1 never preloads the full article');
@@ -68,6 +69,7 @@ try{
  const target=await readArticleDocument('https://wiki.test/article.html#core-modes',{id:'target'});
  const targetData=JSON.parse(target.view.dataset.documentData);
  assert.equal(target.anchor,'target-core-modes');assert.equal(targetData.currentPage,1);assert.equal(target.title,'Second');
+ assert.equal(target.source.href,result.source.href,'every H1 page references the same complete original MDX file');
  assert(targetData.pages[1].html.includes('id="target-core-modes"'),'explicit Section anchors remain exact scoped targets, even when they are not headings');
  assert.equal(targetData.pages[0].html,undefined);assert(targetData.pages[1].html.includes('target-bcode'));
  assert.deepEqual(requests.slice(1),['https://wiki.test/article.html','https://wiki.test/article-page-2.html'],'a cross-H1 hash loads only its owning page');

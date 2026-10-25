@@ -62,5 +62,6 @@ export async function readArticleDocument(href,{id,referencePrefix=id}={}){
   if(!main(document))throw Error('文章章节不存在');
   return {html:scope(document,page),context:pageContext(document,page.url)};
  });
- return {view,title:source.title,context,anchor:anchor?id+'-'+anchor:null};
+ const original=manifest.source?{...manifest.source,href:new URL(manifest.source.href,url).href}:null;
+ return {view,title:source.title,context,source:original,anchor:anchor?id+'-'+anchor:null};
 }

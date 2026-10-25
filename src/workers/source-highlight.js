@@ -5,6 +5,7 @@ const languages={
  cpp:()=>import('@shikijs/langs/cpp'),c:()=>import('@shikijs/langs/c'),python:()=>import('@shikijs/langs/python'),
  bash:()=>import('@shikijs/langs/bash'),json:()=>import('@shikijs/langs/json'),yaml:()=>import('@shikijs/langs/yaml'),
  cmake:()=>import('@shikijs/langs/cmake'),protobuf:()=>import('@shikijs/langs/proto'),markdown:()=>import('@shikijs/langs/markdown'),
+ mdx:()=>Promise.all([import('@shikijs/langs/mdx'),import('@shikijs/langs/tsx')]).then(modules=>({default:modules.flatMap(module=>module.default)})),
  dockerfile:()=>import('@shikijs/langs/dockerfile'),javascript:()=>import('@shikijs/langs/javascript'),typescript:()=>import('@shikijs/langs/typescript'),
  rust:()=>import('@shikijs/langs/rust'),go:()=>import('@shikijs/langs/go'),html:()=>import('@shikijs/langs/html'),
  css:()=>import('@shikijs/langs/css'),toml:()=>import('@shikijs/langs/toml'),xml:()=>import('@shikijs/langs/xml'),

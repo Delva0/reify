@@ -23,6 +23,7 @@ test('HTML previews keep layout and image addresses while removing executable th
  const html=webDocumentHtml(resource,{token:'instance',nonce:'trusted',theme:{dark:true},engine:'https://wiki.test/assets/darkreader/darkreader.js',anchor:'news',scrollbars:'/* </script> */'}),frameNodes=all(parse(html)),scripts=frameNodes.filter(n=>n.tagName==='script');
  assert.equal(scripts.length,2);assert(scripts.every(n=>attr(n,'nonce')==='trusted'));
  assert.equal(attr(scripts[0],'src'),'https://wiki.test/assets/darkreader/darkreader.js');
+ assert.equal(attr(scripts[0],'async'),'','theme loading must not block the readable document');
  assert(attr(frameNodes.find(n=>attr(n,'http-equiv')==='Content-Security-Policy'),'content').includes("script-src 'nonce-trusted'"));
  assert(html.includes('\\u003c/script>'),'configuration cannot terminate its trusted bootstrap script');
  const hostile=await prepareWebDocument('<link rel="stylesheet" href="https://source.test/hostile.css"><p>News</p>','https://source.test/news',{loadStyle:async()=>'</style><script>steal()</script><style>'});
@@ -42,10 +43,11 @@ test('isolated Dark Reader follows only its parent theme and preserves native mo
  const listeners={},messages=[],calls=[],root={dataset:{},style:{setProperty(){}},},parent={postMessage:message=>messages.push(message)};let located=0;
  try{
   install('parent',parent);install('DarkReader',{enable:(...args)=>calls.push(['enable',...args]),disable:()=>calls.push(['disable']),setFetchMethod(){}});
-  install('document',{documentElement:root,baseURI:'https://source.test/news',head:{append(){}},createElement:()=>({}),getElementById:id=>id==='part'?{scrollIntoView(){located++;}}:null,addEventListener:(name,handler)=>listeners[name]=handler});
-  install('addEventListener',(name,handler)=>listeners[name]=handler);install('requestAnimationFrame',callback=>callback());
+  install('document',{documentElement:root,baseURI:'https://source.test/news',head:{append(){}},createElement:()=>({}),querySelector:()=>null,getElementById:id=>id==='part'?{scrollIntoView(){located++;}}:null,addEventListener:(name,handler)=>listeners[name]=handler});
+  install('addEventListener',(name,handler)=>listeners[name]=handler);install('requestAnimationFrame',()=>{});
   webDocumentBootstrap({token:'ours',theme:{dark:true,paper:'#161616',ink:'#dedede',scroll:'#555'},anchor:'part',scrollbars:''});
   assert.equal(calls[0][0],'enable');assert.equal(calls[0][1].darkSchemeBackgroundColor,'#161616');assert.equal(root.dataset.reifyTheme,'dark');assert.equal(located,1);
+  assert(messages.some(message=>message.type==='reify:web-ready'),'readiness cannot depend on painting an invisible frame');
   listeners.message({source:{},data:{type:'reify:web-theme',token:'ours',theme:{dark:false}}});assert.equal(calls.length,1);
   listeners.message({source:parent,data:{type:'reify:web-theme',token:'wrong',theme:{dark:false}}});assert.equal(calls.length,1);
   listeners.message({source:parent,data:{type:'reify:web-theme',token:'ours',theme:{dark:false}}});assert.equal(calls.at(-1)[0],'disable');assert.equal(root.dataset.reifyTheme,'light');
@@ -53,5 +55,26 @@ test('isolated Dark Reader follows only its parent theme and preserves native mo
   assert(click('https://source.test/next').prevented);assert.equal(messages.at(-1).href,'https://source.test/next');
   const before=messages.length;for(const extra of [{ctrlKey:true},{metaKey:true},{button:1}])assert(!click('https://source.test/next',extra).prevented);assert.equal(messages.length,before);
   assert(click('https://source.test/news#part').prevented);assert.equal(located,2);assert.equal(messages.length,before);
+ }finally{for(const [name,descriptor]of originals)if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}
+});
+
+test('a delayed or failed theme engine cannot prevent reading or link handling',()=>{
+ const originals=new Map(),install=(name,value)=>{originals.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
+ const listeners={},messages=[],calls=[],engine={},parent={postMessage:message=>messages.push(message)};
+ try{
+  install('parent',parent);install('DarkReader',undefined);
+  install('document',{documentElement:{dataset:{},style:{setProperty(){}}},baseURI:'https://source.test/news',head:{append(){}},createElement:()=>({}),querySelector:()=>({addEventListener:(name,handler)=>engine[name]=handler}),getElementById:()=>null,addEventListener:(name,handler)=>listeners[name]=handler});
+  install('addEventListener',(name,handler)=>listeners[name]=handler);install('requestAnimationFrame',()=>{});
+  webDocumentBootstrap({token:'ours',theme:{dark:true},scrollbars:''});
+  assert(messages.some(message=>message.type==='reify:web-ready'));
+  assert.equal(typeof listeners.click,'function');
+  listeners.message({source:parent,data:{type:'reify:web-theme',token:'ours',theme:{dark:false}}});
+  globalThis.DarkReader={setFetchMethod(){},enable:()=>calls.push('dark'),disable:()=>calls.push('light')};
+  engine.load();assert.deepEqual(calls,['light'],'a late engine uses the current parent theme');
+  globalThis.DarkReader.enable=()=>{throw Error('theme unavailable');};
+  listeners.message({source:parent,data:{type:'reify:web-theme',token:'ours',theme:{dark:true}}});
+  assert(messages.some(message=>message.type==='reify:web-error'));
+  const event={button:0,target:{closest:()=>({href:'https://source.test/next',hasAttribute:()=>false})},preventDefault(){this.prevented=true;}};
+  listeners.click(event);assert(event.prevented);assert.equal(messages.at(-1).href,'https://source.test/next');
  }finally{for(const [name,descriptor]of originals)if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}
 });

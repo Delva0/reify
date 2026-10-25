@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {registerTreeBranch,registerTreeRoot,toggleTreeBranch,commitTreeChange} from '../src/scripts/tree-branches.js';
+import {registerTreeBranch,registerTreeRoot,toggleTreeBranch,commitTreeChange,registerPersistentTreeBranches} from '../src/scripts/tree-branches.js';
 
 function folder(name,expanded=false,children=[]){
  const list={children,hidden:!expanded},path={value:expanded?'M2 6h8':'M2 6h8M6 2v8',setAttribute(_name,value){this.value=value;}};
@@ -60,5 +60,22 @@ test('tree roots share folder toggles, restore collapsed state and prepare lazy 
   await listeners.get('click')({button:0,ctrlKey:true});assert(!expanded(first)&&!expanded(second));assert(expanded(grandchild));assert(!content.hidden,'Ctrl+click keeps the root itself expanded');
   await listeners.get('click')({button:0});assert(content.hidden);assert.equal(saved.get('files-root'),'false');
   dispose();assert.equal(listeners.size,0);
+ }finally{if(original)Object.defineProperty(globalThis,'localStorage',original);else delete globalThis.localStorage;}
+});
+
+test('repository and heading branches persist across refresh, article changes and patched DOM; Ctrl changes commit once',async()=>{
+ const original=Object.getOwnPropertyDescriptor(globalThis,'localStorage'),saved=new Map();let writes=0;
+ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:key=>saved.get(key)??null,setItem:(key,value)=>{writes++;saved.set(key,value);}}});
+ const branch=(id,opened,children=[])=>{const item=folder(id,opened,children);item.button.dataset={treeKey:id};return item;};
+ const key='tree-branches:persistence-test',first=branch('heading:asc-devkit.html#intro',true),second=branch('heading:asc-devkit-page-2.html#example',false),repository=branch('repository:owner/asc-devkit',false,[first,second]);
+ let buttons=[repository.button,first.button,second.button];const root={querySelectorAll:()=>buttons};
+ try{
+  registerPersistentTreeBranches(root,{key});toggleTreeBranch(repository.button,{button:0});toggleTreeBranch(first.button,{button:0});assert(expanded(repository));assert(!expanded(first));
+  const before=writes;toggleTreeBranch(repository.button,{button:0,ctrlKey:true});assert.equal(writes,before+1);assert(expanded(first)&&expanded(second));assert(expanded(repository));
+  toggleTreeBranch(repository.button,{button:0,ctrlKey:true});assert(!expanded(first)&&!expanded(second));
+  const patchedFirst=branch('heading:asc-devkit.html#intro',true),patchedSecond=branch('heading:asc-devkit-page-2.html#example',true),patchedRepository=branch('repository:owner/asc-devkit',false,[patchedFirst,patchedSecond]);buttons=[patchedRepository.button,patchedFirst.button,patchedSecond.button];
+  registerPersistentTreeBranches(root,{key});assert(expanded(patchedRepository),'an inactive repository remains expanded when navigating to another article');assert(!expanded(patchedFirst)&&!expanded(patchedSecond),'new heading DOM uses stable full-href preferences rather than SSR defaults');assert(patchedFirst.list.hidden&&patchedSecond.list.hidden);
+  const refreshed=await import('../src/scripts/tree-branches.js?persistent-refresh');patchedRepository.button.expanded='false';patchedFirst.button.expanded='true';refreshed.registerPersistentTreeBranches(root,{key});assert(expanded(patchedRepository));assert(!expanded(patchedFirst),'a new runtime restores saved state after F5');
+  const stored=JSON.parse(saved.get(key));assert.deepEqual(new Map(stored.entries).get('repository:owner/asc-devkit'),true);assert.equal(stored.entries.length,3,'changing article context does not create another preference namespace');
  }finally{if(original)Object.defineProperty(globalThis,'localStorage',original);else delete globalThis.localStorage;}
 });
