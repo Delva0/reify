@@ -70,12 +70,18 @@ export async function prepareWebDocument(html,url,{loadStyle,styleLimit=64}={}){
  return {version:1,url,title:text(all(head,node=>node.tagName==='title')[0]||{}).trim()||new URL(url).hostname,html:serialize(root)};
 }
 
-export function webDocumentHtml(resource,{token,nonce,theme,engine,anchor,scrollbars}){
- const root=parse(resource.html),head=all(root,node=>node.tagName==='head')[0],body=all(root,node=>node.tagName==='body')[0];
- const policy=`default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline' https: http:; img-src https: http: data: blob:; font-src https: http: data:; connect-src https: http: data:; media-src https: http: blob:`;
+export function webDocumentHtml(resource,{token,nonce,theme,engine,anchor,scrollbars,snapshot}){
+ const root=parse(snapshot||resource.html),html=all(root,node=>node.tagName==='html')[0],head=all(root,node=>node.tagName==='head')[0],body=all(root,node=>node.tagName==='body')[0];
+ const color=(value,fallback)=>typeof value==='string'&&value.trim()&&!/[;{}<>]/.test(value)?value:fallback;
+ set(html,'data-reify-theme',theme.dark?'dark':'light');set(html,'data-reify-pending','');
+ set(html,'style',(attribute(html,'style')||'')+';--reify-paper:'+color(theme.paper,'#161616')+';--reify-ink:'+color(theme.ink,'#dedede'));
+ const policy=`default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline' https: http:; img-src https: http: data: blob:; font-src https: http: data:; connect-src https: http: data: blob:; media-src https: http: blob:`;
  head.childNodes.unshift(element('meta',{'http-equiv':'Content-Security-Policy',content:policy}));
- head.childNodes.push(element('script',{src:engine,nonce,async:'','data-reify-theme-engine':''}));
- const configuration=JSON.stringify({token,theme,anchor,scrollbars}).replace(/</g,'\\u003c');
+ // Present before the source styles or body can paint. Dark Reader ignores its
+ // own style class, so this temporary palette does not affect color analysis.
+ head.childNodes.splice(1,0,element('style',{class:'darkreader','data-reify-theme-guard':''},'html[data-reify-theme=dark][data-reify-pending],html[data-reify-theme=dark][data-reify-pending] body,html[data-reify-theme=dark][data-reify-pending] body *{background-color:var(--reify-paper)!important;background-image:none!important;color:var(--reify-ink)!important;border-color:var(--reify-ink)!important}html[data-reify-theme=dark]{color-scheme:dark}'));
+ if(!snapshot)head.childNodes.push(element('script',{src:engine,nonce,async:'','data-reify-theme-engine':''}));
+ const configuration=JSON.stringify({token,theme,anchor,scrollbars,cached:Boolean(snapshot)}).replace(/</g,'\\u003c');
  body.childNodes.push(element('script',{nonce},'('+webDocumentBootstrap.toString()+')('+configuration+');'));
  return serialize(root);
 }

@@ -189,7 +189,8 @@ note 指作者提供的原地说明；批注指读者写给 AI 的反馈。控�
 
 - URL-capable float panel 使用固定类型名；inline code viewer 对应 `code`，文章或网页 viewer 对应 `page`。新增类型时一起定义名称、参数校验与恢复行为。
 - 文章与网页使用 `?fp=page&url=目标地址`；站内文章复用静态正文、heading tree 与 H1 分页，显式锚点优先定位目标标题；外站使用独立网页容器。
-- HTML 阅读视图在隔离 iframe 内异步运行 Dark Reader，跟随本站主题；主题加载不阻塞阅读，切换不重载内容，不改变正文配色或整体反色图片。
+- HTML 阅读视图首帧沿用本站主题底色，深色模式不露出白页；隔离 iframe 内异步运行 Dark Reader，切换主题复用已生成样式，保留 DOM 与阅读位置。
+- 深色 HTML 快照按原始 HTML、CSS、主题配色和引擎版本缓存；命中后不重复计算，保留行内颜色与变量，将临时 blob 转成持久资源，缓存有容量上限。
 - 文章引用的外部 HTML 与样式可构建期缓存；阅读快照移除外站脚本，并复用本站滚动条规则。嵌入受限、纯脚本页面或无法获取的资源保留原网页行为，不伪造跨域权限。
 - 作者链接使用 `?fp=code&block=代码块ID`；src、行范围及标注由 MDX 定义，URL 只引用 block，不重复携带配置。
 - 临时文件浏览使用 `?fp=code&file=src/a.cpp&lines=10-20`；file 与 block 互斥，lines 可省略，block 的行范围属于定义。

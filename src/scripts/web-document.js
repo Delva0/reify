@@ -1,7 +1,8 @@
 import {prepareWebDocument,webDocumentKey,webEmbeddingAllowed,webDocumentHtml,webDocumentHasContent} from '../lib/web-document.js';
 import scrollbarStyle from '../../public/scrollbars.css?raw';
+import {createWebThemeCache,webThemeKey} from '../lib/web-theme-cache.js';
 
-let index;const resources=new Map();
+let index;const resources=new Map(),themes=createWebThemeCache();
 export async function readWebDocument(href){
  const url=webDocumentKey(href);
  if(!resources.has(url))resources.set(url,(async()=>{
@@ -27,14 +28,19 @@ export function mountWebDocument(frame,resource,{href=resource.url,onLink}={}){
  const listener=event=>{
   if(event.source!==frame.contentWindow||event.data?.token!==token)return;
   if(event.data.type==='reify:web-link')try{const target=new URL(event.data.href);if(/^https?:$/.test(target.protocol))onLink?.(target.href);}catch{}
+  if(event.data.type==='reify:web-cache'&&typeof event.data.html==='string')webThemeKey(resource,event.data.theme).then(key=>themes.put(key,event.data.html));
   if(event.data.type==='reify:web-ready'||event.data.type==='reify:web-error')reveal();
  };
  addEventListener('message',listener);
  frame.addEventListener('load',reveal);
  const observer=new MutationObserver(()=>frame.contentWindow?.postMessage({type:'reify:web-theme',token,theme:theme()},'*'));observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
- frame.title=resource.title;frame.dataset.webDocument='';frame.style.visibility='hidden';frame.referrerPolicy='no-referrer';
+ frame.title=resource.title;frame.dataset.webDocument='';frame.referrerPolicy='no-referrer';
  frame.setAttribute('sandbox','allow-scripts allow-popups allow-popups-to-escape-sandbox');
- frame.srcdoc=webDocumentHtml(resource,{token,nonce,theme:theme(),engine:new URL('/assets/darkreader/darkreader.js',location.href).href,anchor:url.hash.slice(1),scrollbars:scrollbarStyle});
+ const render=async()=>{const state=theme();let snapshot;
+  try{if(state.dark)snapshot=await themes.get(await webThemeKey(resource,state));}catch{}
+  if(closed)return;const current=theme();if(!current.dark||['paper','ink','scroll'].some(key=>current[key]!==state[key]))snapshot=null;
+  frame.srcdoc=webDocumentHtml(resource,{token,nonce,theme:current,engine:new URL('/assets/darkreader/darkreader.js',location.href).href,anchor:url.hash.slice(1),scrollbars:scrollbarStyle,snapshot});
+ };render();
  const dispose=()=>{if(closed)return;closed=true;clearTimeout(watchdog);observer.disconnect();removeEventListener('message',listener);frame.removeEventListener('load',reveal);frame.removeAttribute('srcdoc');done();};
  return {ready,dispose};
 }
