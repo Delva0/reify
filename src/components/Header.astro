@@ -8,7 +8,7 @@ const {repository,version,site}=Astro.props;
 <header class="repo-header" data-floating-panel data-floating-layer="title" data-floating-persistent>
   <SymmetricButton orientation="horizontal" label="浏览历史" tip="返回/前进" first={{'data-history':'back','aria-label':'返回'}} second={{'data-history':'forward','aria-label':'前进'}}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 10H2m3-3-3 3 3 3m7-3h6m-3-3 3 3-3 3"/></svg></SymmetricButton>
   <button class="icon-button tree-toggle" aria-label="展开目录" aria-expanded="false"><Icon name="tree"/></button>
-  {repository?<Link href={'https://github.com/'+repository.name} target="_blank" rel="noreferrer">{repository.name}</Link>:<span>{site.title}</span>}
+  {repository?<Link data-header-identity href={'https://github.com/'+repository.name} target="_blank" rel="noreferrer">{repository.name}</Link>:<span data-header-identity>{site.title}</span>}
   {repository&&<div class="version-picker">
     <button class="version-trigger" aria-label={'选择仓库版本，当前 '+version.label} data-tip="切换版本" aria-expanded="false" aria-controls="version-menu"><span>{version.label}</span><Icon name="chevron"/></button>
     <div class="version-menu" id="version-menu" hidden>

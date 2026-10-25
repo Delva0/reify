@@ -5,6 +5,8 @@ import {readingContent} from '../lib/reading-content.js';
 import {readFile} from '../lib/github-files.js';
 import {bindTreeWidth} from './tree-width.js';
 import {readingPosition,restoreReadingPosition,sourceLineEntries,rangeBackground} from '../lib/reading-position.js';
+import {syncCodeWrap} from './code-controls.js';
+import {toggleTreeBranch} from './tree-branches.js';
 const views=new WeakMap(),owners=new WeakSet();
 async function hydrateDocumentCode(block){
  if(!block.hasAttribute('data-document-code'))return;block.removeAttribute('data-document-code');
@@ -23,7 +25,7 @@ export function setDocumentMode(root,rendered){
  const position=previous&&previous!==(rendered?'rendered':'source')?(previous==='rendered'?controller?.position():readingPosition(pre,sourceLineEntries(pre))):null;
  root.dataset.documentMode=rendered?'rendered':'source';view.hidden=!rendered;if(pre)pre.hidden=rendered;
  button.hidden=false;button.setAttribute('aria-pressed',String(!rendered));button.setAttribute('aria-label',rendered?'源码':'文档');button.dataset.tip=rendered?'源码':'文档';
- const wrap=head.querySelector('[data-code-wrap]'),ranges=head.querySelector('[data-code-ranges]');if(wrap)wrap.hidden=rendered;if(ranges)ranges.hidden=root.dataset.hasRanges!=='true';
+ const wrap=head.querySelector('[data-code-wrap]'),ranges=head.querySelector('[data-code-ranges]');syncCodeWrap(wrap,root);if(ranges)ranges.hidden=root.dataset.hasRanges!=='true';
  if(position){if(rendered)controller?.restore(position);else restoreReadingPosition(pre,sourceLineEntries(pre),position);}
  root.dispatchEvent(new CustomEvent('documentmodechange',{detail:{rendered,synchronized:Boolean(position)}}));
 }
@@ -73,7 +75,7 @@ export function mountDocumentView(view,owner=view.closest('.code-block,[data-cod
  const hydrate=()=>{if(!article)return;hydrateReadingContent(article);indexSources();markRanges();rangeObserver?.disconnect();rangeObserver?.observe(article);const canvas=article.querySelector(':scope > .document');if(canvas)rangeObserver?.observe(canvas);for(const block of article.querySelectorAll('[data-document-code]'))hydrateDocumentCode(block);for(const nested of article.querySelectorAll('[data-file-document]'))mountDocumentView(nested);};
  const click=event=>{
   if(event.target.closest('[data-file-document]')!==view)return;
-  const branch=event.target.closest('.document-outline .tree-branch');if(branch){const list=branch.closest('li').querySelector(':scope > .tree-sections');if(list){const open=branch.getAttribute('aria-expanded')==='true';branch.setAttribute('aria-expanded',String(!open));branch.querySelector('path').setAttribute('d',open?'M2 6h8M6 2v8':'M2 6h8');list.hidden=open;}return;}
+  const branch=event.target.closest('.document-outline .tree-branch');if(branch){toggleTreeBranch(branch,event);return;}
   const link=event.target.closest('a[href]'),href=link?.getAttribute('href');if(!payload||!href?.startsWith('#')||event.button!==0||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
   let id;try{id=decodeURIComponent(href.slice(1));}catch{return;}const pageHref=payload.anchors[id],index=payload.pages.findIndex(page=>page.href===pageHref);if(index<0)return;
   event.preventDefault();scrollPositions.set(current,article.scrollTop);
@@ -91,7 +93,9 @@ export function mountDocumentView(view,owner=view.closest('.code-block,[data-cod
   if(page>=0)selectPage(page);
   restoreReadingPosition(article,sources,position);
  };
- views.set(view,{target,position:()=>readingPosition(article,sources),restore,release(){release();releaseWidth();rangeObserver?.disconnect();cancelAnimationFrame(rangeFrame);view.removeEventListener('click',click);view.removeEventListener('load',markRanges,true);}});
+ const snapshot=()=>({page:current,scroll:[...scrollPositions],top:article?.scrollTop||0,left:article?.scrollLeft||0});
+ const restoreState=state=>{if(!state)return;if(Array.isArray(state.scroll))for(const [index,top]of state.scroll)if(Number.isInteger(index)&&Number.isFinite(top))scrollPositions.set(index,top);if(Number.isInteger(state.page)&&state.page>=0&&state.page<(payload?.pages.length||1))selectPage(state.page);if(article&&Number.isFinite(state.top))article.scrollTop=state.top;if(article&&Number.isFinite(state.left))article.scrollLeft=state.left;};
+ views.set(view,{target,position:()=>readingPosition(article,sources),restore,snapshot,restoreState,release(){release();releaseWidth();rangeObserver?.disconnect();cancelAnimationFrame(rangeFrame);view.removeEventListener('click',click);view.removeEventListener('load',markRanges,true);}});
  view.addEventListener('click',click);
  view.addEventListener('load',markRanges,true);
  hydrate();
@@ -101,4 +105,6 @@ export function mountDocumentView(view,owner=view.closest('.code-block,[data-cod
 }
 export function unmountDocumentView(view){for(const nested of view.querySelectorAll('[data-file-document]'))unmountDocumentView(nested);views.get(view)?.release();views.delete(view);}
 export const documentRangeTarget=(view,range,navigate=false)=>views.get(view)?.target(range,navigate);
+export const documentViewState=view=>views.get(view)?.snapshot();
+export const restoreDocumentViewState=(view,state)=>views.get(view)?.restoreState(state);
 export function initDocumentViews(){for(const view of document.querySelectorAll('[data-file-document]'))mountDocumentView(view);}

@@ -1,7 +1,8 @@
 import {$,$$} from '../lib/dom.js';
-import {registerFloatingPanel} from './floating-panels.js';
+import {registerFloatingPanel,setFloatingParent,raiseFloatingPanel,setFloatingModal} from './floating-panels.js';
 import {altHeld,hasAlt,watchAlt} from '../lib/alt.js';
 import {positionTip} from '../lib/position-tip.js';
+import {transientSession,nodeReference,resolveNode,panelGeometry,restorePanelGeometry} from '../lib/transient-session.js';
 let initialized=false;
 export function hydrateAnnotations(root=document){
  const notes=new Map();
@@ -13,10 +14,12 @@ export function hydrateAnnotations(root=document){
 }
 export function initAnnotations(){
  const description=$('#note-description');if(initialized||!description)return;initialized=true;
+ let session=transientSession('note'),pending=session.read();
  let active,closeTimer,pinned=false,group=[],pointer,pointerKnown=false;
  const hold=()=>clearTimeout(closeTimer);
- const pin=()=>{if(!active||altHeld())return;pinned=true;hold();description.setAttribute('data-pinned','');};
- const hide=()=>{hold();for(const node of group){node.classList.remove('note-active');node.removeAttribute('aria-describedby');}group=[];active=null;pinned=false;description.removeAttribute('data-pinned');description.hidden=true;description.textContent='';};
+ const save=()=>{if(pinned&&active)session.write({trigger:nodeReference(active),geometry:panelGeometry(description),modal:description.dataset.modal==='true'});};
+ const pin=()=>{if(!active||altHeld())return;pinned=true;hold();description.setAttribute('data-pinned','');save();};
+ const hide=()=>{hold();pending=null;session.write(null);for(const node of group){node.classList.remove('note-active');node.removeAttribute('aria-describedby');}group=[];active=null;pinned=false;description.removeAttribute('data-pinned');description.hidden=true;description.textContent='';};
  registerFloatingPanel(description,event=>{if(event.type==='close'||event.key==='Escape'||!altHeld()&&!hasAlt(event))hide();});
  const position=()=>{
   if(!active)return;
@@ -31,8 +34,17 @@ export function initAnnotations(){
   for(const node of group){node.classList.add('note-active');node.setAttribute('aria-describedby',description.id);}
   document.body.append(description);
   description.textContent=trigger.dataset.noteDescription;description.hidden=false;
+  setFloatingParent(description,trigger);raiseFloatingPanel(description);
   trigger.setAttribute('aria-describedby',description.id);position();
  };
+ const restore=()=>{
+  if(!pending||active||altHeld())return;const saved=pending,trigger=resolveNode(saved.trigger);
+  if(!trigger?.dataset?.noteDescription)return;
+  show(trigger,{type:'restore'});pinned=true;description.setAttribute('data-pinned','');restorePanelGeometry(description,saved.geometry);setFloatingModal(description,Boolean(saved.modal));pending=null;save();
+ };
+ Promise.resolve().then(restore);document.addEventListener('fpready',restore);addEventListener('pagehide',save);addEventListener('beforeunload',save);
+ document.addEventListener('reify:before-navigate',()=>{save();hold();for(const node of group){node.classList.remove('note-active');node.removeAttribute('aria-describedby');}group=[];active=null;pinned=false;pending=null;description.removeAttribute('data-pinned');description.hidden=true;description.textContent='';setFloatingModal(description,false);setFloatingParent(description,null);});
+ document.addEventListener('reify:after-navigate',()=>{session=transientSession('note');pending=session.read();restore();});
  const deferHide=()=>{hold();if(pinned||altHeld())return;closeTimer=setTimeout(()=>{if(!pinned&&!altHeld()&&!group.some(node=>node.matches(':hover,:focus-within'))&&!description.matches(':hover'))hide();},120);};
  const track=event=>{pointerKnown=true;pointer={x:event.clientX,y:event.clientY,buttons:event.buttons};};
  const recheck=()=>{
@@ -41,7 +53,7 @@ export function initAnnotations(){
   if(target&&description.contains(target)){hold();return;}
   const trigger=target?.closest?.('[data-note-description]');if(trigger)show(trigger,{type:'resume'});else hide();
  };
- watchAlt((paused,event)=>{if(paused)hold();else if(event.type==='blur'){pointer=null;pointerKnown=true;if(!pinned)hide();}else recheck();});
+ watchAlt((paused,event)=>{if(paused)hold();else if(event.type==='blur'){pointer=null;pointerKnown=true;if(!pinned)hide();}else{restore();recheck();}});
  document.addEventListener('pointermove',track,{capture:true,passive:true});
  document.addEventListener('pointerover',event=>{track(event);const trigger=event.target.closest?.('[data-note-description]');if(trigger&&!trigger.contains(event.relatedTarget))show(trigger,event);});
  document.addEventListener('pointerout',event=>{if(!event.relatedTarget){pointerKnown=true;pointer=null;}if(active?.contains(event.target)&&!active.contains(event.relatedTarget))deferHide();});

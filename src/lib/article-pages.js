@@ -13,11 +13,11 @@ export function headingPages(headings,base){
  return pages;
 }
 export const serializeArticlePages=value=>JSON.stringify(value).replace(/</g,'\\u003c');
-export function redirectArticleAnchor(manifest){
+export function redirectArticleAnchor(manifest,navigate){
  let id;try{id=decodeURIComponent(location.hash.slice(1));}catch{return false;}
  const href=manifest?.anchors?.[id];if(!href)return false;
  const target=new URL(href,location.href),normalize=path=>(path.replace(/\.html$/,'').replace(/\/$/,'')||'/index');
  if(normalize(target.pathname)===normalize(location.pathname))return false;
- target.search=location.search;target.hash=location.hash;location.replace(target.href);return true;
+ target.search=location.search;target.hash=location.hash;if(navigate)navigate(target.href);else location.replace(target.href);return true;
 }
 export const articlePageBootstrap='('+redirectArticleAnchor.toString()+')(JSON.parse(document.getElementById("article-pages").textContent));';

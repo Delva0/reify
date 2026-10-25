@@ -8,12 +8,14 @@ import {languageLabel,resourceLanguage} from '../lib/code-language.js';
 import {cachedFileResource} from './file-resources.js';
 import {bundledSource} from './sources.js';
 import {articleCodeBlock} from './article-pages.js';
-import {codeBlockDefinition} from '../lib/code-block.js';
+import {codeBlockDefinition,normalizeCodeBlock} from '../lib/code-block.js';
 import {hasCodeAnnotations} from '../lib/code-annotations.js';
 import {documentFormat} from '../lib/document-format.js';
 
-export function initCodeViewers(){registerFpType('code',(props,{onClose,onDetach,onAttach,origin,parentsReady=[]})=>{
- const viewer=createCodeDialog({onClose,onDetach,onAttach});
+export function initCodeViewers(){registerFpType('code',(props,context)=>{
+ const {origin,parentsReady=[]}=context,viewer=createCodeDialog(context);
+ let retainedDefinition=context.restore?.definition;
+ const snapshot=viewer.snapshot;viewer.snapshot=()=>({...snapshot(),...(retainedDefinition?{definition:retainedDefinition}:{})});
  const load=async()=>{
   let current=viewer.update({title:'代码',message:'读取代码…'}),file=props.file,ranges=props.ranges||[],annotations={},definition,sourceOrigin=origin;
   const alive=()=>viewer.alive(current);
@@ -32,10 +34,10 @@ export function initCodeViewers(){registerFpType('code',(props,{onClose,onDetach
   try{
    if(props.block){
     let element=await articleCodeBlock(props.block);if(!element&&parentsReady.length){await Promise.allSettled(parentsReady);element=await articleCodeBlock(props.block);}if(!alive())return;
-    if(!element)throw Error('代码块不存在：'+props.block);
-    definition=codeBlockDefinition(element);sourceOrigin=element.closest('[data-mdx-line]');
-    const pre=element.matches('.code-block')?$('pre',element):null,prepared=(element.content||element).querySelector('[data-file-document]');
-    if(pre?.querySelector(':scope > code > .line')){const view=await documentView(pre,{src:definition?.src,language:element.dataset.language,prepared});if(alive())viewer.update({title:$('.code-language',element)?.textContent||'文本',pre,sourceFile:definition?.src||'',origin:sourceOrigin,ranges:definition?.ranges||[],documentView:view});return;}
+    if(!element&&retainedDefinition?.id!==props.block)throw Error('代码块不存在：'+props.block);
+    definition=element?codeBlockDefinition(element):normalizeCodeBlock({...retainedDefinition,lines:retainedDefinition.ranges||[]});retainedDefinition=definition;sourceOrigin=element?.closest('[data-mdx-line]')||sourceOrigin;
+    const pre=element?.matches('.code-block')?$('pre',element):null,prepared=(element?.content||element)?.querySelector('[data-file-document]');
+    if(pre?.querySelector(':scope > code > .line')){retainedDefinition||=normalizeCodeBlock({id:props.block,code:pre.textContent,language:element.dataset.language||'text'});const view=await documentView(pre,{src:definition?.src,language:element.dataset.language,prepared});if(alive())viewer.update({title:$('.code-language',element)?.textContent||'文本',pre,sourceFile:definition?.src||'',origin:sourceOrigin,ranges:definition?.ranges||[],documentView:view});return;}
     if(!definition)throw Error('代码块定义无效：'+props.block);
     file=definition.src;ranges=definition.ranges;annotations=definition;
     if(definition.code!==undefined){

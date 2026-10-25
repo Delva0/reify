@@ -13,6 +13,7 @@ export function initTips(){
  document.addEventListener('tipchange',event=>{if(event.target===active)show(active);});
  document.addEventListener('panelresize',event=>{if(active&&event.target.contains(active))position();});
  document.addEventListener('pointerdown',()=>{keyboard=false;hide();},true);
+ document.addEventListener('reify:before-navigate',hide);
  document.addEventListener('keydown',event=>{keyboard=event.key==='Tab';if(event.key==='Escape')hide();},true);
  document.addEventListener('keyup',event=>{if(event.key==='Tab')keyboard=false;},true);
  document.addEventListener('scroll',position,{capture:true,passive:true});addEventListener('resize',position);addEventListener('blur',hide);

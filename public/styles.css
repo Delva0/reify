@@ -27,7 +27,7 @@
 *::selection{background:var(--selection);color:var(--selection-ink)}
 [hidden]{display:none!important}
 html{scroll-padding-top:74px;scrollbar-gutter:stable}
-html:has(dialog[open][data-modal=true]),html.reader-annotation-capturing{overflow:hidden;overscroll-behavior:none}
+html.floating-modal-active,html.reader-annotation-capturing{overflow:hidden;overscroll-behavior:none}
 [data-floating-panel]{overscroll-behavior:contain}
 :where([data-floating-panel]:not([data-floating-layer=title])){overflow:auto}
 body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.8 var(--sans)}
@@ -37,6 +37,7 @@ a{color:inherit;text-decoration:underline solid var(--underline);text-decoration
 a[data-link-kind]::after{display:inline-block;margin-left:.16em;font:400 .7em/1 var(--mono);vertical-align:super;color:var(--muted);text-decoration:none;user-select:none}
 a[data-link-kind=external]::after{content:'↗'}
 a[data-link-kind=page]::after{content:'→'}
+:is(.repo-tree,.github-files,.document-outline) a[data-link-kind]::after{content:none}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
 
 /* Shared controls */
@@ -210,8 +211,8 @@ dialog[open]{display:block}
 dialog[data-modal=false]{inset:auto;margin:0;z-index:60;min-width:min(240px,var(--panel-max-width));min-height:calc(var(--dialog-bar-height) + 2px);max-width:var(--panel-max-width);max-height:var(--panel-max-height);resize:both;overflow:hidden}
 dialog[data-modal=false][open]{display:flex;flex-direction:column}
 dialog[data-modal=false]>[data-source-code],dialog[data-modal=false]>[data-source-preview]{flex:1;min-height:0;max-height:none}
-.code-backdrop{position:fixed;inset:0;z-index:69;background:rgba(0,0,0,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-:root:not([data-theme=dark]) .code-backdrop{background:rgba(0,0,0,.06)}
+.floating-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+:root:not([data-theme=dark]) .floating-backdrop{background:rgba(0,0,0,.06)}
 .dialog-head{display:flex;flex-shrink:0;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);height:var(--dialog-bar-height);padding:10px 12px;cursor:default;touch-action:none;user-select:none}
 .dialog-head .code-tools{position:static;flex-shrink:0}
 .dialog-head .code-language{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -221,7 +222,7 @@ dialog[data-modal=false]>[data-source-code],dialog[data-modal=false]>[data-sourc
 .source-line>span{width:48px;flex-shrink:0;color:var(--muted)!important;text-align:right;padding-right:12px;user-select:none}
 .source-line>span::before{content:attr(data-line)}
 .source-line>code{font-size:12px}
-.code-block[data-wrap=true] pre,.code-block[data-wrap=true] pre code{white-space:pre-wrap;overflow-wrap:anywhere}
+.code-block[data-wrap=true]>pre,.code-block[data-wrap=true]>pre code{white-space:pre-wrap;overflow-wrap:anywhere}
 [data-code-viewer][data-wrap=true] .source-line{width:100%;white-space:pre-wrap}
 [data-code-viewer][data-wrap=true] .source-lines{width:100%;min-width:0}
 [data-code-viewer][data-wrap=true] .source-line>code{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -248,7 +249,8 @@ dialog[data-modal=false]>[data-source-code],dialog[data-modal=false]>[data-sourc
 .document-outline .tree-heading{font-size:12px}
 .document-content{width:100%;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
 .document img{max-width:100%;height:auto}
-.document-content>.document{position:relative;isolation:isolate}
+.document-content>.document{position:relative;isolation:isolate;white-space:normal}
+[data-document-wrap=false]>[data-source-document]>[data-file-document]>[data-document-content]>.document,[data-document-wrap=false]>[data-file-document]>[data-document-content]>.document{width:max-content;min-width:100%;max-width:none;white-space:nowrap;overflow-wrap:normal;word-break:normal}
 .document-content>.document::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background-image:var(--document-range-background,none);background-repeat:no-repeat}
 .document-error{grid-column:1/-1;margin:0;padding:24px;font-size:13px}
 [data-source-document]{min-height:0;overflow:hidden}
@@ -277,6 +279,7 @@ a.text-note{text-decoration-style:solid;cursor:pointer}
 
 /* Reader annotation controls and local editor */
 .selection-painted::selection,.selection-painted ::selection{background:transparent}
+.selection-painted :is(img,video,audio,canvas,iframe,object,embed)::selection{background:transparent;color:transparent}
 .selection-painted :is(input,textarea,[contenteditable=true],[data-reader-annotation-ui])::selection,.selection-painted [data-reader-annotation-ui] ::selection{background:var(--selection)}
 ::highlight(reader-selection){background:var(--selection);color:var(--selection-ink)}
 .reader-annotation-control{position:relative;display:inline-flex;flex-shrink:0}

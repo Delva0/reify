@@ -8,13 +8,13 @@ class Panel{
  hasAttribute(name){return name==='data-floating-persistent'&&this.persistent;}
  addEventListener(type,handler,options){this.listeners.set(type,{handler,options});}
 }
-const title=new Panel('title','title',true),code=new Panel('code',70),note=new Panel('note',85),editor=new Panel('editor',200),page=new Panel('page'),directory=new Panel('directory'),future=new Panel('future',300);
+const title=new Panel('title','title',true),code=new Panel('code',70),note=new Panel('note',85),editor=new Panel('editor','editor'),page=new Panel('page'),directory=new Panel('directory'),future=new Panel('future',300);
 const stack=[title,code,note,editor];
 const reset=()=>{closed.length=0;for(const panel of stack){panel.hidden=false;panel.open=true;}future.hidden=true;};
 const click=(target,expected)=>{reset();events.get('pointerdown')({target});assert.deepEqual(closed,expected,target.name+': only higher layers close');};
 try{
  install('Element',Panel);install('document',{addEventListener:(type,fn)=>events.set(type,fn)});install('addEventListener',(type,fn)=>windowEvents.set(type,fn));
- for(const panel of stack)registerFloatingPanel(panel,()=>{closed.push(panel.name);panel.hidden=true;panel.open=false;});
+ for(const panel of stack)registerFloatingPanel(panel,()=>{closed.push(panel.name);panel.hidden=true;panel.open=false;},{parent:panel===note?code:undefined});
  initFloatingPanels();
  for(const panel of stack)assert(!panel.listeners.has('wheel'),'panel registration leaves native scrolling on the browser path');
  assert.equal(floatingLayer(title),Infinity);assert.equal(floatingLayer(page),0);
@@ -25,7 +25,7 @@ try{
  windowEvents.get('keyup')({key:'Escape'});assert.deepEqual(closed,[],'keyup does not close a panel');
  escape();assert.deepEqual(closed,['editor']);escape();assert.deepEqual(closed,['editor','note']);escape();assert.deepEqual(closed,['editor','note','code']);escape();assert(!title.hidden,'the persistent title is never closed');
  registerFloatingPanel(future,()=>{closed.push('future');future.hidden=true;});reset();future.hidden=false;
- events.get('pointerdown')({target:note});assert.deepEqual(closed,['future','editor'],'new higher panels use the same rule without component-specific logic');
+ events.get('pointerdown')({target:note});assert.deepEqual(closed,['editor','future'],'the reserved editor stratum stays above newly added ordinary panels');
  reset();future.hidden=false;events.get('pointerdown')({target:title});assert.deepEqual(closed,[],'title stays highest when future layers are added');
  reset();for(const panel of stack)if(panel!==title)panel.hidden=true;future.hidden=true;
  const detached=new Panel('detached',60),otherDetached=new Panel('other-detached',60);

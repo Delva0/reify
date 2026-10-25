@@ -4,12 +4,17 @@ import {codeDistribution,share,distributionTip} from '../lib/code-distribution.j
 import {fileBrowserStateKey,readFileBrowserState,saveFileBrowserState} from '../lib/file-browser-state.js';
 import {formatLineRanges,isWebFile} from '../lib/code-props.js';
 import {markLink} from '../lib/links.js';
-import {initSidebar} from './sidebars.js';
+import {initSidebar,disposeSidebar} from './sidebars.js';
 import {articleCodeBlock} from './article-pages.js';
 import {codeBlockDefinition} from '../lib/code-block.js';
+import {registerTreeBranch,toggleTreeBranch,commitTreeChange} from './tree-branches.js';
 
+const instances=new WeakMap();
+export function disposeGitHubFiles(panel=document.querySelector('.github-files')){instances.get(panel)?.dispose();}
 export function initGitHubFiles(){
  const panel=document.querySelector('.github-files'),toggle=document.querySelector('.github-files-toggle');if(!panel||!toggle)return;
+ if(instances.has(panel))return instances.get(panel);
+ const lifetime=new AbortController(),signal=lifetime.signal;
  const repository=document.body.dataset.repositoryName,commit=document.body.dataset.commit;
  const [owner,repo]=repository.split('/').map(encodeURIComponent);
  const stateKey=fileBrowserStateKey(repository,commit),saved=readFileBrowserState(stateKey),expandedPaths=new Set(saved.expanded);
@@ -27,9 +32,9 @@ export function initGitHubFiles(){
   if(current!==selectionRevision)return;
   activeFile=file||null;activeRanges=ranges;persist();
   if(activeFile&&!isWebFile(activeFile))revealFile(activeFile).catch(()=>{});else ++navigation;
- });
- addEventListener('pagehide',persist);
- document.addEventListener('pointerdown',event=>{if(!selected?.contains(event.target)&&!event.target.closest?.('[data-code-viewer],.code-backdrop'))clearSelected();},true);
+ },{signal});
+ addEventListener('pagehide',persist,{signal});
+ document.addEventListener('pointerdown',event=>{if(!selected?.contains(event.target)&&!event.target.closest?.('[data-code-viewer],.floating-backdrop'))clearSelected();},{capture:true,signal});
  const refreshTip=event=>{const row=event.target.closest?.('.github-file-row');if(row)updateRowTip(row,true);};
  panel.addEventListener('pointerover',refreshTip,true);panel.addEventListener('focusin',refreshTip,true);
  languageMenu.addEventListener('click',event=>{
@@ -99,7 +104,9 @@ export function initGitHubFiles(){
      row.type='button';
      const open=expandedPaths.has(path);row.setAttribute('aria-expanded',String(open));const branch=document.createElement('span');branch.className='github-branch';branch.setAttribute('aria-hidden','true');branch.textContent=open?'−':'+';row.append(branch);
      const children=document.createElement('div');children.hidden=!open;let loaded=open;if(open)renderDirectory(children,path);
-     row.addEventListener('click',()=>{selectRow(row);const expanded=row.getAttribute('aria-expanded')==='true';row.setAttribute('aria-expanded',String(!expanded));branch.textContent=expanded?'+':'−';children.hidden=expanded;if(expanded)expandedPaths.delete(path);else expandedPaths.add(path);persist();if(!expanded&&!loaded){loaded=true;renderDirectory(children,path);}});
+     const prepareChildren=()=>{if(!loaded){loaded=true;renderDirectory(children,path);}};
+     registerTreeBranch(row,{prepareChildren,setExpanded(expanded){row.setAttribute('aria-expanded',String(expanded));branch.textContent=expanded?'−':'+';children.hidden=!expanded;if(expanded)expandedPaths.add(path);else expandedPaths.delete(path);if(expanded)prepareChildren();commitTreeChange(persist);}});
+     row.addEventListener('click',event=>{selectRow(row);toggleTreeBranch(row,event);});
      li.append(row,children);
     }else{row.href=codeHref(path);markLink(row);row.addEventListener('click',()=>selectRow(row));li.append(row);}
     row.append(name);updateRow(row);list.append(li);
@@ -107,4 +114,5 @@ export function initGitHubFiles(){
    container.replaceChildren(list);
  }
  initSidebar('files',visible=>{if((visible||activeFile)&&!started){started=true;loadRepository().catch(()=>{});}});
+ const controller={dispose(){persist();lifetime.abort();++navigation;++selectionRevision;disposeSidebar('files');instances.delete(panel);}};instances.set(panel,controller);return controller;
 }

@@ -11,7 +11,7 @@ export function bindPanelDrag(panel,handle,onDetach){
  const move=event=>{
   if(!drag||drag.id!==event.pointerId)return;const dx=event.clientX-drag.x,dy=Math.max(drag.minPointerY,event.clientY)-drag.y;
   if(!drag.active){if(Math.hypot(dx,dy)<4)return;drag.active=true;panel.style.width=drag.width+'px';panel.style.height=drag.height+'px';onDetach();handle.setPointerCapture(event.pointerId);}
-  place(drag.left+dx,drag.top+dy);
+  place(drag.left+dx,drag.top+dy);panel.dispatchEvent?.(new Event('panelmove',{bubbles:true}));
  };
  const end=event=>{if(!drag||event&&event.pointerId!==drag.id)return;if(handle.hasPointerCapture(drag.id))handle.releasePointerCapture(drag.id);drag=undefined;};
  const blur=()=>end(),resize=()=>{if(drag)drag.minPointerY=titleBottom();};addEventListener('blur',blur);addEventListener('resize',resize);

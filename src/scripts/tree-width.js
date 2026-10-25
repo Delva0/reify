@@ -1,3 +1,5 @@
+const pageTrees=new WeakMap();
+export function disposeTreeWidth(tree){pageTrees.get(tree)?.();pageTrees.delete(tree);}
 export function bindTreeWidth(tree,handle,{styleTarget=tree,maximum=()=>480,key,right=false,observe}={}){
  if(!tree||!handle)return ()=>{};
  let preferred=220,pointerId;const bindings=[];
@@ -13,12 +15,13 @@ export function bindTreeWidth(tree,handle,{styleTarget=tree,maximum=()=>480,key,
  on('keydown',event=>{if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;event.preventDefault();preferred=Number(handle.getAttribute('aria-valuenow'))+((event.key==='ArrowLeft')!==right?-10:10);apply();persist();});
  const observer=observe&&typeof ResizeObserver==='function'?new ResizeObserver(apply):null;observer?.observe(observe);
  addEventListener('resize',apply);apply();
- return ()=>{for(const [type,handler]of bindings)handle.removeEventListener(type,handler);removeEventListener('resize',apply);observer?.disconnect();if(pointerId!==undefined&&handle.hasPointerCapture(pointerId))handle.releasePointerCapture(pointerId);tree.classList.remove('is-resizing');};
+ const dispose=()=>{for(const [type,handler]of bindings)handle.removeEventListener(type,handler);removeEventListener('resize',apply);observer?.disconnect();if(pointerId!==undefined&&handle.hasPointerCapture(pointerId))handle.releasePointerCapture(pointerId);tree.classList.remove('is-resizing');};dispose.refresh=apply;return dispose;
 }
 export function initTreeWidth(){
  for(const [selector,key,right]of [['.repo-tree','tree-width',false],['.github-files','github-files-width',true]]){
   const tree=document.querySelector(selector),handle=tree?.querySelector('.tree-resize-handle');if(!tree||!handle)continue;
+  if(pageTrees.has(tree)){pageTrees.get(tree).refresh();continue;}
   const maximum=()=>{const article=document.querySelector('.document').getBoundingClientRect(),bounds=tree.getBoundingClientRect(),inset=Number.parseFloat(getComputedStyle(tree)[right?'right':'left'])||0,edge=bounds.width?(right?bounds.right:bounds.left):(right?document.documentElement.clientWidth-inset:inset);return Math.max(128,Math.min(480,matchMedia('(min-width:1200px)').matches?(right?edge-article.right:article.left-edge)-48:innerWidth-32));};
-  bindTreeWidth(tree,handle,{maximum,key,right});
+  pageTrees.set(tree,bindTreeWidth(tree,handle,{maximum,key,right}));
  }
 }

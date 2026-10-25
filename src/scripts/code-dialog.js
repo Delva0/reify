@@ -1,76 +1,87 @@
 import {$,notice} from '../lib/dom.js';
-import {registerFloatingPanel,unregisterFloatingPanel,raiseFloatingPanel,floatingLayer} from './floating-panels.js';
+import {registerFloatingPanel,unregisterFloatingPanel,raiseFloatingPanel,setFloatingModal} from './floating-panels.js';
 import {normalizeLineRanges,formatLineRanges} from '../lib/code-props.js';
 import {markLink} from '../lib/links.js';
-import {setCodeText} from './code-controls.js';
+import {setCodeText,codeIcon} from './code-controls.js';
 import {bindPanelDrag} from './panel-drag.js';
 import {bindPanelWheel} from './panel-wheel.js';
 import {panelPosition,panelResizeCorner} from '../lib/panel-position.js';
-import {mountDocumentView,unmountDocumentView,documentRangeTarget} from './document-view.js';
-const background=new Map(),modalDialogs=new Map();let nextId=0,backdropBound=false;
-function bindBackdrop(){
- if(backdropBound)return;backdropBound=true;
- $('.code-backdrop').addEventListener('click',event=>{
-  if(event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
-  const top=[...modalDialogs].sort(([a],[b])=>floatingLayer(b)-floatingLayer(a))[0];top?.[1]();
- });
-}
-function syncModalBackdrop(){
- const active=modalDialogs.size>0;$('.code-backdrop').hidden=!active;
- if(active){for(const node of document.querySelectorAll('main,.repo-tree,.github-files')){if(!background.has(node))background.set(node,node.inert);node.inert=true;}}
- else{for(const [node,inert]of background)node.inert=inert;background.clear();}
-}
+import {mountDocumentView,unmountDocumentView,documentRangeTarget,setDocumentMode,documentViewState,restoreDocumentViewState} from './document-view.js';
+let nextId=0;
+const validBox=box=>box&&['left','top','width','height'].every(key=>Number.isFinite(box[key]))&&box.width>0&&box.height>0;
 
-export function createCodeDialog({onClose,onDetach,onAttach}){
- bindBackdrop();
+export function createCodeDialog({onClose,onDetach,onAttach,onStateChange,parentPanel,sessionId,restore:initialState}={}){
  const dialog=$('#code-viewer-template').content.firstElementChild.cloneNode(true),code=$('[data-source-code]',dialog),preview=$('[data-source-preview]',dialog),documentHost=$('[data-source-document]',dialog);
- dialog.id='code-viewer-'+(++nextId);dialog.dataset.floatingLayer='70';dialog.setAttribute('aria-labelledby',dialog.id+'-title');$('[data-source-title]',dialog).id=dialog.id+'-title';
- let revision=0,imageUrl,closed=false,navigationRanges=[],lastJump,lastNonModalBox,lastExpandedHeight;
+ dialog.id='code-viewer-'+(++nextId);if(sessionId)dialog.dataset.fpSessionId=sessionId;dialog.setAttribute('aria-labelledby',dialog.id+'-title');$('[data-source-title]',dialog).id=dialog.id+'-title';
+ let revision=0,imageUrl,closed=false,navigationRanges=[],lastJump,lastNonModalBox,lastExpandedHeight,pendingRestore=initialState,restoring=false,contentReady=false;
+ const notify=()=>{if(!closed&&!restoring)onStateChange?.();};
+ const edited=()=>{if(!restoring)pendingRestore=null;notify();};
  document.body.append(dialog);
  const scrollPositions=()=>[code,preview,...documentHost.querySelectorAll('[data-document-content],.document-outline')].map(node=>[node,node.scrollTop,node.scrollLeft]);
  const restoreScroll=positions=>{for(const [node,top,left]of positions){node.scrollTop=top;node.scrollLeft=left;}};
- const raise=()=>{
-  if(dialog.dataset.modal!=='false')return;
-  const parent=dialog.parentElement,last=[...parent.children].findLast(node=>node.matches('[data-code-viewer][data-modal=false]'));
-  if(last!==dialog){const positions=scrollPositions();if(parent.moveBefore)parent.moveBefore(dialog,null);else parent.append(dialog);restoreScroll(positions);}
-  raiseFloatingPanel(dialog);
- };
+ const raise=()=>raiseFloatingPanel(dialog);
  const resizeBox=event=>{if(dialog.dataset.modal!=='false')return;const box=dialog.getBoundingClientRect();if(panelResizeCorner(event.clientX,event.clientY,box))return box;};
  const minHeight=()=>parseFloat(getComputedStyle(dialog).minHeight);
  dialog.addEventListener('pointerdown',event=>{const box=resizeBox(event);if(box&&box.height>minHeight()+1)lastExpandedHeight=box.height;raise();},true);
  dialog.addEventListener('dblclick',event=>{
   const box=resizeBox(event);if(!box)return;event.preventDefault();event.stopPropagation();
   const minimum=minHeight();dialog.style.height=(box.height<=minimum+1?lastExpandedHeight||minimum:minimum)+'px';
+  edited();
  });
  const detach=(box=dialog.getBoundingClientRect())=>{
   if(dialog.dataset.modal==='false')return;
   lastExpandedHeight??=box.height;
   const positions=scrollPositions(),position=panelPosition(box.left,box.top);
   dialog.style.width=box.width+'px';dialog.style.height=box.height+'px';dialog.style.left=position.left+'px';dialog.style.top=position.top+'px';
-  dialog.dataset.modal='false';dialog.setAttribute('aria-modal','false');modalDialogs.delete(dialog);syncModalBackdrop();onDetach?.();dialog.dataset.floatingLayer='60';dialog.style.zIndex='60';raise();
+  setFloatingModal(dialog,false);onDetach?.();raise();edited();
   restoreScroll(positions);
  };
  const unbindDrag=bindPanelDrag(dialog,$('.dialog-head',dialog),detach);
  const unbindWheel=bindPanelWheel(dialog,$('.dialog-head',dialog),box=>{detach(box);raise();});
+ const attach=()=>{
+  if(dialog.dataset.modal==='true')return;
+  const box=dialog.getBoundingClientRect(),positions=scrollPositions();onAttach?.();
+  lastNonModalBox={left:box.left,top:box.top,width:box.width,height:box.height};
+  for(const name of ['left','top','width','height','inset','margin'])dialog.style.removeProperty(name);
+  setFloatingModal(dialog,true);raise();restoreScroll(positions);edited();
+ };
  $('.dialog-head',dialog).addEventListener('dblclick',event=>{
   if(resizeBox(event))return;
   if(event.target.closest('button,a,input,textarea,select'))return;
   if(dialog.dataset.modal==='true'){detach(lastNonModalBox);return;}
-  const box=dialog.getBoundingClientRect();
-  const positions=scrollPositions();
-  try{onAttach?.();}catch(error){notice(error.message);return;}
-  lastNonModalBox={left:box.left,top:box.top,width:box.width,height:box.height};
-  dialog.dataset.modal='true';dialog.setAttribute('aria-modal','true');
-  for(const name of ['left','top','width','height'])dialog.style.removeProperty(name);
-  modalDialogs.set(dialog,()=>detach(lastNonModalBox));syncModalBackdrop();
-  restoreScroll(positions);
+  try{attach();}catch(error){notice(error.message);}
  });
  const releaseImage=()=>{if(imageUrl)URL.revokeObjectURL(imageUrl);imageUrl=undefined;};
  const close=()=>{
-  if(closed)return;closed=true;++revision;unbindDrag();unbindWheel();rangeObserver.disconnect();documentObserver.disconnect();cancelAnimationFrame(navigationFrame);releaseImage();for(const view of documentHost.querySelectorAll(':scope > [data-file-document]'))unmountDocumentView(view);dialog.dispatchEvent(new Event('sourcechange'));dialog.close();unregisterFloatingPanel(dialog);modalDialogs.delete(dialog);dialog.remove();syncModalBackdrop();
+  if(closed)return;closed=true;++revision;unbindDrag();unbindWheel();geometryObserver.disconnect();rangeObserver.disconnect();documentObserver.disconnect();cancelAnimationFrame(navigationFrame);releaseImage();for(const view of documentHost.querySelectorAll(':scope > [data-file-document]'))unmountDocumentView(view);dialog.dispatchEvent(new Event('sourcechange'));dialog.close();unregisterFloatingPanel(dialog);dialog.remove();
   onClose?.();
  };
- registerFloatingPanel(dialog,close);$('[data-close-source]',dialog).addEventListener('click',close);
+ registerFloatingPanel(dialog,close,{parent:parentPanel,onBackdrop:()=>detach(lastNonModalBox),onChange:notify});$('[data-close-source]',dialog).addEventListener('click',close);
+ const geometryObserver=new ResizeObserver(notify);geometryObserver.observe(dialog);
+ for(const type of ['panelmove','panelresize','codewrapchange'])dialog.addEventListener(type,edited);
+ dialog.addEventListener('scroll',()=>{if(contentReady&&!restoring)pendingRestore=null;notify();},true);dialog.addEventListener('documentmodechange',notify);dialog.addEventListener('pointerup',notify);
+ dialog.addEventListener('click',event=>{if(event.target.closest?.('[data-code-document]'))edited();});
+ const snapshot=()=>{
+  const box=dialog.getBoundingClientRect();
+  const state={modal:dialog.dataset.modal!=='false',box:{left:box.left,top:box.top,width:box.width,height:box.height},lastNonModalBox,lastExpandedHeight,wrap:dialog.dataset.wrap==='true',documentWrap:dialog.dataset.documentWrap!=='false',documentMode:dialog.dataset.documentMode,documents:[...documentHost.querySelectorAll(':scope > [data-file-document]')].map(documentViewState),scroll:scrollPositions().map(([,top,left])=>({top,left}))};
+  return !contentReady&&pendingRestore?{...pendingRestore,modal:state.modal,box:validBox(state.box)?state.box:pendingRestore.box}:state;
+ };
+ const applyRestore=()=>{
+  if(!pendingRestore)return;restoring=true;
+  try{
+   const state=pendingRestore;
+   if(typeof state.modal==='boolean'){if(state.modal)attach();else detach(validBox(state.box)?state.box:undefined);}
+   if(validBox(state.lastNonModalBox))lastNonModalBox=state.lastNonModalBox;
+   if(Number.isFinite(state.lastExpandedHeight))lastExpandedHeight=state.lastExpandedHeight;
+   if(validBox(state.box)){dialog.style.inset='auto';dialog.style.margin='0';for(const name of ['left','top','width','height'])dialog.style[name]=state.box[name]+'px';}
+   if(typeof state.documentWrap==='boolean')dialog.dataset.documentWrap=String(state.documentWrap);
+   dialog.dataset.wrap=String(Boolean(state.wrap));const wrap=$('[data-code-wrap]',dialog);wrap?.setAttribute('aria-pressed',dialog.dataset.wrap);if(wrap){wrap.dataset.tip=state.wrap?'取消换行':'自动换行';wrap.replaceChildren(codeIcon(state.wrap?'wrap':'nowrap'));}
+   [...documentHost.querySelectorAll(':scope > [data-file-document]')].forEach((view,index)=>restoreDocumentViewState(view,state.documents?.[index]));
+   if(state.documentMode&&documentHost.querySelector('[data-file-document]'))setDocumentMode(dialog,state.documentMode==='rendered');
+   if(Array.isArray(state.scroll))scrollPositions().forEach(([node],index)=>{const saved=state.scroll[index];if(saved&&Number.isFinite(saved.top)&&Number.isFinite(saved.left)){node.scrollTop=saved.top;node.scrollLeft=saved.left;}});
+  }finally{restoring=false;}
+ };
+ const restore=state=>{pendingRestore={...snapshot(),...state};applyRestore();notify();};
  const rangeControl=$('[data-code-ranges]',dialog),rangeBadge=$('[data-symmetric-badge]',rangeControl);
  let sourceRangeTargets=[],rangeOffsets=[],rangeArea,rangePageStart,navigationFrame,navigationDirty=false,pendingJump,pendingDirection=0;
  const initializedModes=new Set();
@@ -126,7 +137,7 @@ export function createCodeDialog({onClose,onDetach,onAttach}){
    pendingDirection=0;if(navigationDirty)measureRanges();refreshRangeTip();navigationFrame=undefined;
   });
  };
- const initializeNavigation=event=>{if(event?.detail?.synchronized){initializedModes.add(mode());lastJump=undefined;pendingJump=undefined;}else if(navigationRanges.length&&!initializedModes.has(mode()))pendingJump=lastJump?.index||0;scheduleNavigation(true);};
+ const initializeNavigation=event=>{if(pendingRestore?.scroll?.length||event?.detail?.synchronized){initializedModes.add(mode());lastJump=undefined;pendingJump=undefined;}else if(navigationRanges.length&&!initializedModes.has(mode()))pendingJump=lastJump?.index||0;scheduleNavigation(true);};
  const rangeObserver=new ResizeObserver(()=>scheduleNavigation(true)),documentObserver=new MutationObserver(()=>scheduleNavigation(true));
  dialog.addEventListener('documentmodechange',initializeNavigation);
  dialog.addEventListener('documentpagechange',event=>{if(event.target.parentElement===documentHost){lastJump=undefined;scheduleNavigation(true);}});
@@ -138,6 +149,7 @@ export function createCodeDialog({onClose,onDetach,onAttach}){
  dialog.addEventListener('close',close);
  const update=({title,text,pre,sourceFile='',origin,ranges=[],documentView,message,href,image,retry})=>{
  if(closed)return;
+ contentReady=!message;
  const highlighted=pre?[...pre.querySelectorAll(':scope > code > .line')]:[];
  const lines=message||image?[]:highlighted.length?highlighted:(text??pre?.textContent??'').split('\n');
  setCodeText(dialog,message||image?null:lines.map(line=>typeof line==='string'?line.replace(/\r$/,''):line.textContent).join('\n'));
@@ -173,10 +185,10 @@ export function createCodeDialog({onClose,onDetach,onAttach}){
  dialog.dataset.sourceFile=sourceFile;
  dialog.dataset.sourceRanges=formatLineRanges(selectedRanges);
  for(const name of ['mdxLine','mdxColumn','mdxEndLine','mdxEndColumn']){if(origin?.dataset[name])dialog.dataset[name]=origin.dataset[name];else delete dialog.dataset[name];}
- if(!dialog.open){if(dialog.dataset.modal==='true')modalDialogs.set(dialog,()=>detach(lastNonModalBox));syncModalBackdrop();dialog.show();}
+ if(!dialog.open)dialog.show();setFloatingModal(dialog,dialog.dataset.modal!=='false');applyRestore();
  if(navigationRanges.length){rangeObserver.observe(canvas);rangeObserver.observe(dialog);documentObserver.observe(documentHost,{childList:true,subtree:true});initializeNavigation();}
  else if(code.querySelector('[data-code-annotation-group]')){const opened=revision;requestAnimationFrame(()=>{if(revision!==opened||!dialog.open)return;const target=$('[data-code-annotation-group]',code);if(target&&!rendered())code.scrollTop=Math.max(0,target.getBoundingClientRect().top-code.getBoundingClientRect().top+code.scrollTop-24);});}
- return revision;
+ notify();return revision;
  };
- return {panel:dialog,update,close,current:()=>revision,alive:version=>!closed&&revision===version};
+ return {panel:dialog,update,close,snapshot,restore,current:()=>revision,alive:version=>!closed&&revision===version};
 }

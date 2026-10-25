@@ -6,7 +6,7 @@ const saved=new Map(),events=new Map();let selected=false,measurements=0;
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
 const register=(type,fn,options)=>{if(!events.has(type))events.set(type,[]);events.get(type).push({fn,capture:options===true||options?.capture});};
 class Node{
- constructor(own=false){this.own=own;this.nodeType=1;this.hidden=true;this.value='';this.style={};this.classList={toggle(){},remove(){}};}
+ constructor(own=false){this.own=own;this.nodeType=1;this.hidden=true;this.value='';this.style={};this.dataset={};this.classList={toggle(){},remove(){}};}
  closest(){return this.own?this:null;}setAttribute(){}addEventListener(){}
 }
 const page=new Node(),button=new Node(true),editor=new Node(true),input=new Node(true),control=new Node(true),children=new Map([['textarea',input],['.reader-annotation-kind',control],['[role=status]',control],['[data-reader-annotation-confirm]',control],['[data-reader-annotation-cancel]',control]]);
@@ -16,6 +16,7 @@ const range={commonAncestorContainer:page,toString:()=>selected?'selected text':
 const fire=(type,extra={})=>{const event={type,target:page,key:'',button:0,buttons:0,altKey:false,ctrlKey:false,metaKey:false,shiftKey:false,...extra};for(const {fn}of [...events.get(type)||[]].sort((a,b)=>Number(b.capture)-Number(a.capture)))fn(event);};
 try{
  install('Element',Node);install('document',{documentElement:page,querySelector:selector=>({'.reader-annotation-mode':button,'.reader-annotation-editor':editor}[selector]||null),addEventListener:register});
+ install('localStorage',{getItem:()=>null,setItem(){},removeItem(){}});
  install('addEventListener',()=>{});install('getSelection',()=>({rangeCount:1,isCollapsed:!selected,getRangeAt:()=>range}));
  watchAlt(()=>{});toggleReaderAnnotation();selected=true;
  fire('pointerdown',{altKey:true});fire('pointerup',{altKey:true});fire('keyup',{key:'Alt'});

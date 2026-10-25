@@ -35,6 +35,6 @@ const fileResources=await prepareArticleResources(page.references,Astro.url.path
   <script id="file-resources" type="application/json" is:inline set:html={serializeFileResources(fileResources)}/>
   <CodeDialog/><div id="notice" role="status"/>
   <ReaderAnnotationEditor/>
-  <Tip id="note-description" interactive layer={100}/><Tip id="control-tip"/>
+  <Tip id="note-description" interactive/><Tip id="control-tip"/>
   <script>import '../scripts/client.js';</script>
 </body></html>

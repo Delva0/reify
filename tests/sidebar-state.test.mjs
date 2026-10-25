@@ -15,6 +15,7 @@ globalThis.document=document;globalThis.localStorage=storage;globalThis.matchMed
 const visible=[];initSidebar('repository');initSidebar('files',value=>visible.push(value));
 const left=nodes.get('.tree-toggle'),right=nodes.get('.github-files-toggle'),files=nodes.get('.github-files');
 assert.equal(left.getAttribute('aria-expanded'),'false');assert.equal(right.getAttribute('aria-expanded'),'false');assert.deepEqual(visible,[false]);
+ const mediaCount=media.length;assert.equal(initSidebar('files').panel,files);assert.equal(media.length,mediaCount,'refreshing an unchanged sidebar reuses its controller and global media listener');
 right.dispatch('click');assert.equal(root.getAttribute('data-files-collapsed'),'false');assert.equal(root.getAttribute('data-tree-collapsed'),'true');assert.equal(values.get('github-files-collapsed'),'false');assert.equal(right.getAttribute('aria-label'),'收起文件列表');assert.equal(visible.at(-1),true);
 media[1].matches=false;media[1].change();assert.equal(visible.at(-1),false,'narrow layout starts with a closed overlay');
 right.dispatch('click');assert(files.classList.contains('is-open'));assert.equal(visible.at(-1),true);assert.equal(values.get('github-files-collapsed'),'false','overlay visibility does not overwrite desktop preference');

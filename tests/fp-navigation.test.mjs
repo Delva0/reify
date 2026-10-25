@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {fpHref,parseFpUrl,fpTypes} from '../src/lib/fp-links.js';
 import {registerFpType,showFloatingPanels,initFpNavigation,floatingPanelState,appendFpState} from '../src/scripts/fp-navigation.js';
+import {fpSessionKey} from '../src/lib/fp-session.js';
 
 const descriptors=new Map(),install=(key,value)=>{descriptors.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});};
 const a={type:'code',props:{file:'src/a.cpp',ranges:[{from:10,to:20}]}},b={type:'code',props:{file:'src/b.cpp',ranges:[]}},storage=new Map(),listeners=new Map(),opened=[],changes=[];
@@ -26,7 +27,8 @@ try{
  showFloatingPanels([]);assert.equal(location.search,'');assert.equal(location.hash,'#mdx-3');assert.equal(changes.at(-1).length,0);
  showFloatingPanels([a,b]);const detached=opened.at(-1),remaining=opened.at(-2);detached.detach();
  assert.deepEqual(floatingPanelState(),[a]);assert.equal(location.search,fpHref([a]));assert(!detached.closed);assert(!remaining.closed,'detaching changes URL ownership without closing either viewer');
- assert.deepEqual(JSON.parse(storage.get('floating-panels-v1:owner/repo@commit')),[a],'refresh state excludes the detached panel');
+ const session=JSON.parse(storage.get(fpSessionKey('owner/repo','commit','/article.html')));
+ assert.deepEqual(session.entries.map(entry=>[entry.state,entry.modal]),[[a,true],[b,false]],'refresh retains modal and non-modal viewers while URL state remains modal-only');
  detached.attach();assert.deepEqual(floatingPanelState(),[a,b]);assert.deepEqual(parseFpUrl(location.href,location.href),[a,b]);assert(!detached.closed,'reattaching restores the same instance and its URL configuration');
  detached.detach();assert.deepEqual(floatingPanelState(),[a]);
  showFloatingPanels([]);assert(remaining.closed);assert(!detached.closed,'URL navigation preserves the non-modal viewer');

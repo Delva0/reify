@@ -27,6 +27,7 @@ const click=node=>{fire(documentEvents,'pointerdown',{target:node});fire(documen
 const flush=()=>{for(const fn of timers.values())fn();timers.clear();};
 try{
  install('Element',Node);install('innerWidth',1000);install('innerHeight',800);
+ install('localStorage',{getItem:()=>null,setItem(){},removeItem(){}});
  install('document',{body,documentElement:new Node('root'),activeElement:page,hidden:false,querySelector:s=>s==='#note-description'?panel:null,querySelectorAll:()=>[],elementFromPoint:()=>underPointer,addEventListener:(type,fn,options)=>register(documentEvents,type,fn,options)});
  install('addEventListener',(type,fn,options)=>register(windowEvents,type,fn,options));install('setTimeout',fn=>{timers.set(++timerId,fn);return timerId;});install('clearTimeout',id=>timers.delete(id));
  initAnnotations();

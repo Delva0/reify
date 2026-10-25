@@ -1,4 +1,5 @@
 ---
-import {headingTreeHtml} from '../lib/heading-tree-html.js';
+import {headingTreeHtml,headingTreeItemsHtml} from '../lib/heading-tree-html.js';
+const {nodes,pageHref,itemsOnly=false}=Astro.props;
 ---
-<Fragment set:html={headingTreeHtml(Astro.props.nodes,Astro.props.pageHref)}/>
+<Fragment set:html={(itemsOnly?headingTreeItemsHtml:headingTreeHtml)(nodes,pageHref)}/>

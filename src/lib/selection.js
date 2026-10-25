@@ -1,9 +1,11 @@
+import {selectionPaintRanges} from './selection-paint.js';
+
 let retained,paint;
 const supported=()=>Boolean(globalThis.CSS?.highlights&&typeof Highlight==='function');
 export const sameRange=(a,b)=>a&&b&&a.startContainer===b.startContainer&&a.startOffset===b.startOffset&&a.endContainer===b.endContainer&&a.endOffset===b.endOffset;
 function draw(range){
  if(!supported())return;
- if(range)CSS.highlights.set('reader-selection',new Highlight(range));else CSS.highlights.delete('reader-selection');
+ if(range)CSS.highlights.set('reader-selection',new Highlight(...selectionPaintRanges(range)));else CSS.highlights.delete('reader-selection');
  document.documentElement.classList.toggle('selection-painted',Boolean(range));
 }
 export function retainSelection(range){
