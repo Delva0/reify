@@ -22,8 +22,8 @@
 *::-webkit-scrollbar{width:8px;height:8px}
 *::-webkit-scrollbar-track,*::-webkit-scrollbar-corner{background:transparent}
 *::-webkit-scrollbar-button{display:none;width:0;height:0}
-*::-webkit-scrollbar-thumb{border:2px solid transparent;background:var(--scroll-thumb-color);background-clip:padding-box}
-*::-webkit-scrollbar-thumb:active{background:var(--scroll-thumb)}
+*::-webkit-scrollbar-thumb{border:2px solid transparent;background-color:var(--scroll-thumb-color);background-clip:padding-box}
+*::-webkit-scrollbar-thumb:active{background-color:var(--scroll-thumb)}
 *::selection{background:var(--selection);color:var(--selection-ink)}
 [hidden]{display:none!important}
 html{scroll-padding-top:74px;scrollbar-gutter:stable}
