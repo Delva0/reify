@@ -4,7 +4,11 @@ import {sourceLanguage} from './code-language.js';
 export function linkPanelState(link,event,base,current){
  if(!link||link.dataset?.fpTarget||event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||link.hasAttribute('download'))return null;
  if(!link.closest('.document,[data-source-code],.annotation-desc,[data-page-address]')||link.closest('.document-outline,.repo-tree,.github-files,.repo-header'))return null;
- const href=link.getAttribute('href');if(!href||href.startsWith('#'))return null;
+ return readingLinkState(link.getAttribute('href'),base,current);
+}
+
+export function readingLinkState(href,base,current=base){
+ if(!href||href.startsWith('#'))return null;
  let url;try{url=new URL(href,base);}catch{return null;}
  if(!linkKind(url.href,base))return null;
  const language=sourceLanguage(url.pathname),source=/^\/(?:[^/]+\/){2}blob\//.test(url.pathname)&&url.hostname==='github.com'||url.hostname==='raw.githubusercontent.com';

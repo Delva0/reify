@@ -1,6 +1,6 @@
 import {createCodeDialog} from './code-dialog.js';
 import {registerFpType,openFloatingPanels} from './fp-navigation.js';
-import {linkPanelState} from '../lib/link-panels.js';
+import {linkPanelState,readingLinkState} from '../lib/link-panels.js';
 import {readingContext,setReadingContext} from '../lib/reading-context.js';
 import {markLink} from '../lib/links.js';
 import {notice} from '../lib/dom.js';
@@ -25,23 +25,30 @@ function openPage(props,context){
  panel.dataset.pageViewer='loading';
  const title=panel.querySelector('[data-source-title]'),preview=panel.querySelector('[data-source-preview]');
  const copyText=()=>{const article=panel.querySelector('[data-document-content]>.document');if(article)setCodeText(panel,article.innerText);};
- const web=()=>{
+ const web=async revision=>{
+  const {readWebDocument,mountWebDocument}=await import('./web-document.js'),resource=await readWebDocument(url.href);
+  if(!viewer.alive(revision))return;
   panel.dataset.pageViewer='web';viewer.update({title:url.hostname});
   const address=document.createElement('a');address.href=url.href;address.dataset.pageAddress='';address.textContent=url.hostname;markLink(address);title.replaceChildren(address);
-  const frame=document.createElement('iframe');frame.src=url.href;frame.title=url.hostname;frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');frame.referrerPolicy='strict-origin-when-cross-origin';
+  const frame=document.createElement('iframe');frame.title=url.hostname;frame.referrerPolicy='no-referrer';
   preview.replaceChildren(frame);preview.hidden=false;
+  if(resource){
+   setReadingContext(panel,{url:resource.url,title:resource.title});
+   const content=mountWebDocument(frame,resource,{href:url.href,onLink:href=>openFloatingPanels([readingLinkState(href,resource.url,location.href)||{type:'page',props:{url:href}}],{origin:frame})});
+   panel.addEventListener('sourcechange',content.dispose,{once:true});await content.ready;
+  }else{frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');frame.src=url.href;}
  };
  const load=async()=>{
   const current=viewer.update({title:url.hostname,message:'读取网页…'});
   try{
-   if(url.origin!==location.origin){web();return;}
+   if(url.origin!==location.origin){await web(current);return;}
    const {readArticleDocument}=await import('./article-document.js'),scope=await documentId(props.url,context.sessionId),article=await readArticleDocument(url.href,scope),id=scope.id;
    if(!viewer.alive(current))return;
    panel.dataset.pageViewer='article';setReadingContext(panel,article.context);setReadingContext(article.view,article.context);article.view.dataset.readingScope=id;
    viewer.update({title:article.title,text:'',documentView:article.view});
    panel.querySelector('[data-code-copy]').setAttribute('aria-label','复制文本');copyText();
    await positionArticleDocument(panel,article,context);
-  }catch(error){if(!viewer.alive(current))return;if(error.message==='目标不是文章页面')web();else viewer.update({title:url.hostname,message:error.message||'网页暂时无法读取',retry:load});}
+  }catch(error){if(!viewer.alive(current))return;if(error.message==='目标不是文章页面')await web(current);else viewer.update({title:url.hostname,message:error.message||'网页暂时无法读取',retry:load});}
  };
  panel.addEventListener('documentpagechange',copyText);
  viewer.ready=load();return viewer;

@@ -1,3 +1,4 @@
+@import url('./scrollbars.css');
 :root{
  color-scheme:light;
  --paper:#f4f4f4;--surface:#eee;--head:#e9e9e9;--ink:#282828;--muted:#616161;--line:#c6c6c6;--tree-line:#b1b1b1;
@@ -17,18 +18,7 @@
  --selection:#b8b8b8;--selection-ink:#000;--underline:#707070;--scroll-thumb:#555;
  --math-primary:#8caed0;--math-secondary:#c8a37e;
 }
-*{box-sizing:border-box;scrollbar-color:auto;scrollbar-width:auto;--scrollbar-thumb-paint:transparent}
-*:hover{--scrollbar-thumb-paint:var(--scroll-thumb)}
-*::-webkit-scrollbar{width:8px;height:8px}
-*::-webkit-scrollbar-track,*::-webkit-scrollbar-corner{background:transparent}
-*::-webkit-scrollbar-button{display:none;width:0;height:0}
-*::-webkit-scrollbar-thumb{border:2px solid transparent;background-color:var(--scrollbar-thumb-paint);background-clip:padding-box}
-*::-webkit-scrollbar-thumb:hover{background-color:var(--scroll-thumb)}
-*::-webkit-scrollbar-thumb:active{background-color:var(--scroll-thumb)}
-@supports not selector(::-webkit-scrollbar){
- *{scrollbar-width:thin;scrollbar-color:transparent transparent}
- *:hover{scrollbar-color:var(--scroll-thumb) transparent}
-}
+*{box-sizing:border-box}
 *::selection{background:var(--selection);color:var(--selection-ink)}
 [hidden]{display:none!important}
 html{scroll-padding-top:74px;scrollbar-gutter:stable}

@@ -9,6 +9,7 @@ import {serializeFileResources} from '../lib/file-resource.js';
 import {sidebarBootstrap} from '../lib/sidebar-state.js';
 import {prepareArticlePages} from '../build/article-pages.mjs';
 import {prepareArticleResources} from '../build/file-resources.mjs';
+import {prepareWebDocuments} from '../build/web-documents.mjs';
 import {articlePageBootstrap,serializeArticlePages} from '../lib/article-pages.js';
 import {readingContent} from '../lib/reading-content.js';
 const {repository,version,navigation,base,pageIndex=0,source,current,site}=Astro.props;
@@ -16,6 +17,7 @@ const article=await prepareArticlePages(base,()=>Astro.slots.render('default'),b
 if(!page)throw Error('H1 分页不存在：'+pageIndex);
 const manifest={...article.manifest,headings:page.headings};
 const fileResources=await prepareArticleResources(page.references,Astro.url.pathname,article.blocks,article.manifest.anchors);
+await prepareWebDocuments([...page.references,...Object.values(article.blocks).flatMap(block=>block.links.map(link=>link.href))],Astro.url.pathname);
 ---
 <!doctype html><html lang="zh-CN"><head>
   <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="generator" content={Astro.generator}/>

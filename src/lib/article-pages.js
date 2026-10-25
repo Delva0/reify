@@ -1,4 +1,5 @@
 export const canonicalArticlePath=path=>(path.replace(/\.html$/,'').replace(/\/$/,'')||'/index');
+export const articleSourceId=source=>source.replaceAll('\\','/').replace(/^\.\//,'').replace(/\.mdx$/,'');
 export const articlePageName=(base,index=0)=>base+(index?'-page-'+(index+1):'');
 export const articleBasePath=path=>canonicalArticlePath(path).replace(/-page-[1-9]\d*$/,'');
 export const renderedHeadings=result=>result.remarkPluginFrontmatter?.exactHeadings||result.headings;

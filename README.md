@@ -37,6 +37,8 @@ CodeBlocks accept either `code` or `src`; `render={false}` keeps a definition av
 
 Markdown and MDX files default to a document view, with the same heading tree, H1 pages, KaTeX, and syntax highlighting as articles. The source icon in the shared toolbar switches back to the original text. Inline documents select `language="markdown"` or `language="mdx"`. Predefined documents use the registered Astro components at build time; ad hoc files use the same MDX compiler in a lazy worker with the framework's portable components. Module imports and executable expressions in fetched MDX remain available in source view.
 
+HTML page viewers use Dark Reader inside an isolated reading frame and follow the blog theme without reloading. Public HTML and styles referenced by articles are cached during the build; external scripts are removed from these reading snapshots. Embedding restrictions, script-only pages, and unavailable resources keep their original iframe behavior, where the browser still enforces cross-origin access. Dark Reader is self-hosted with its MIT license under `assets/darkreader/` in the built site.
+
 ```mdx
 <CodeBlock id="example" language="python" code={"result = f(value)"}
   notes={[{at:{text:"value"},desc:"The input value."}]} />

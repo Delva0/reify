@@ -3,20 +3,20 @@ import {getCollection,render} from 'astro:content';
 import {readSiteConfig,readFacts} from '../site-config.mjs';
 import {mdxComponents} from '../mdx-components.mjs';
 import Article from '../layouts/Article.astro';
-import {headingPages,articlePageName,renderedHeadings} from '../lib/article-pages.js';
+import {headingPages,articlePageName,renderedHeadings,articleSourceId} from '../lib/article-pages.js';
 
 export async function getStaticPaths(){
   const site=readSiteConfig(),repositories=site.repositories;
   const entries=await getCollection('articles');
   const byId=new Map(entries.map(entry=>[entry.id,entry]));
-  const navigation=await Promise.all([...repositories.map(repository=>({...repository,source:repository.versions.find(v=>v.id===repository.defaultVersion).source})),...site.pages.map(page=>({...page,name:page.title||page.id}))].map(async item=>{const entry=byId.get(item.source.replace(/\.mdx$/,''));if(!entry)throw Error('Missing MDX: '+item.source);return {...item,headings:renderedHeadings(await render(entry))};}));
+  const navigation=await Promise.all([...repositories.map(repository=>({...repository,source:repository.versions.find(v=>v.id===repository.defaultVersion).source})),...site.pages.map(page=>({...page,name:page.title||page.id}))].map(async item=>{const entry=byId.get(articleSourceId(item.source));if(!entry)throw Error('Missing MDX: '+item.source);return {...item,headings:renderedHeadings(await render(entry))};}));
   const paths=[];
   for(const repository of repositories)for(const version of repository.versions){
-    const entry=byId.get(version.source.replace(/\.mdx$/,''));if(!entry)throw Error('Missing MDX: '+version.source);
+    const entry=byId.get(articleSourceId(version.source));if(!entry)throw Error('Missing MDX: '+version.source);
     const headings=renderedHeadings(await render(entry)),bases=[repository.id+'-'+version.id,...(version.id===repository.defaultVersion?[repository.page.replace(/\.html$/,'')]:[])];
     for(const base of bases)for(const [pageIndex]of headingPages(headings,base).entries())paths.push({params:{name:articlePageName(base,pageIndex)},props:{entry,repository,version,navigation,base,pageIndex,source:version.source,current:repository.id,site}});
   }
-  for(const page of site.pages){const entry=byId.get(page.source.replace(/\.mdx$/,''));if(!entry)throw Error('Missing MDX: '+page.source);const base=page.page.replace(/\.html$/,''),headings=renderedHeadings(await render(entry));for(const [pageIndex]of headingPages(headings,base).entries())paths.push({params:{name:articlePageName(base,pageIndex)},props:{entry,navigation,base,pageIndex,source:page.source,current:page.id,site}});}
+  for(const page of site.pages){const entry=byId.get(articleSourceId(page.source));if(!entry)throw Error('Missing MDX: '+page.source);const base=page.page.replace(/\.html$/,''),headings=renderedHeadings(await render(entry));for(const [pageIndex]of headingPages(headings,base).entries())paths.push({params:{name:articlePageName(base,pageIndex)},props:{entry,navigation,base,pageIndex,source:page.source,current:page.id,site}});}
   const names=new Set();for(const item of paths){if(names.has(item.params.name))throw Error('页面路径重复：'+item.params.name);names.add(item.params.name);}return paths;
 }
 const {entry,repository,version,navigation,base,pageIndex,source,current,site}=Astro.props;

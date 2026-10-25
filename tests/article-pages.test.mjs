@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import {parseFragment} from 'parse5';
 import {paginateArticle,prepareArticlePages} from '../src/build/article-pages.mjs';
-import {headingPages,articleBasePath,redirectArticleAnchor,serializeArticlePages} from '../src/lib/article-pages.js';
+import {headingPages,articleBasePath,redirectArticleAnchor,serializeArticlePages,articleSourceId} from '../src/lib/article-pages.js';
 import {exactHeadings} from '../src/markdown.mjs';
+assert.equal(articleSourceId('models/index.mdx'),'models/index','directory index sources keep their file identity');
+assert.equal(articleSourceId('models.mdx'),'models');assert.equal(articleSourceId('./models\\foundations.mdx'),'models/foundations');
 const html='<section id="whole" data-mdx-line="1"><h1 id="mdx-1">图与<code>Session</code></h1><span hidden data-note-definitions="{&quot;x&quot;:&quot;定义&quot;}"></span><p id="intro" data-mdx-line="2">第一页 <a href="#second">下一页</a></p><h2 id="mdx-2">类型与<a href="https://example.com">来源</a></h2><pre><code><span style="color:red">first()</span></code></pre><section id="second"><h1 id="mdx-3">执行机制</h1><p data-note="x" data-mdx-line="8">第二页</p><div class="katex"><math><mi>X</mi></math><span>X</span></div><div id="code-test" class="code-block"><pre>second()</pre></div><h6 id="mdx-4">状态约束</h6></section><h1 id="mdx-5">资源释放</h1><p>第三页</p></section>';
 const result=paginateArticle(html,'backend-abc'),[first,second,third]=result.pages;
 assert.equal(result.pages.length,3);assert.deepEqual(result.pages.map(page=>page.href),['backend-abc.html','backend-abc-page-2.html','backend-abc-page-3.html']);
