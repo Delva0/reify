@@ -1,0 +1,7 @@
+---
+import CodeActions from './CodeActions.astro';
+import CodeTools from './CodeTools.astro';
+---
+<div class="code-backdrop" hidden aria-hidden="true"/>
+<template id="code-tools-template"><CodeTools expandable={false}/></template>
+<template id="code-viewer-template"><dialog class="inline-code-viewer" data-code-viewer data-floating-panel data-floating-dismiss="explicit" data-modal="true" aria-modal="true"><div class="dialog-head"><span data-source-title class="code-language"/><CodeActions closable navigation/></div><pre data-source-code/><div data-source-preview hidden/><div data-source-document hidden/></dialog></template>

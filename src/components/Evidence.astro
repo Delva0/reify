@@ -1,0 +1,8 @@
+---
+import Link from './Link.astro';
+const facts=Astro.locals.repositoryFacts||{repositories:{},facts:[]};
+const {ids=''}=Astro.props;
+const seen=new Set();
+const evidence=ids.split(' ').flatMap(id=>facts.facts.find(f=>f.id===id)?.evidence.slice(0,2)||[]).filter(e=>{if(seen.has(e.url))return false;seen.add(e.url);return true;});
+---
+<div class="refs" data-ge-facts={ids}>源码：{evidence.map(e=><Link href={e.url} target="_blank" rel="noreferrer">{e.file.split('/').at(-1)}:{e.line}</Link>)}</div>

@@ -1,0 +1,11 @@
+---
+import CodeBlock from './CodeBlock.astro';
+import {sourceProps} from '../markdown.mjs';
+const {repo}=Astro.props;
+const items=Astro.locals.site?.fileMaps[repo]||[];
+---
+<div id={repo+'-file-map'} class="file-component" {...sourceProps(Astro.props)}>
+  <div class="file-list">{items.map((item,i)=><button data-file-index={i} aria-pressed={String(i===0)}>{item.file}</button>)}</div>
+  <div class="file-divider" role="separator" tabindex="0" aria-label="调整文件列表宽度" aria-orientation="vertical" aria-valuemin="120" aria-valuemax="450" aria-valuenow="220"/>
+  <div class="file-detail">{items.map((item,i)=><div data-file-panel={i} data-file-name={item.file} hidden={i!==0}><p>{item.label}</p><CodeBlock code={item.code} language="cpp" scroll/></div>)}</div>
+</div>

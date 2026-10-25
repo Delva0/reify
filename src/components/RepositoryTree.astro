@@ -1,0 +1,20 @@
+---
+import TreeNodes from './TreeNodes.astro';
+import {headingPages} from '../lib/article-pages.js';
+import {nestHeadings as nest} from '../lib/heading-tree.js';
+const {navigation,current,headings,pageHref,site}=Astro.props;
+---
+<aside class="repo-tree" aria-label="仓库与文章目录">
+  <div class="repo-tree-content">
+  <a class="tree-root" href={site.home}>{site.navigationLabel}</a>
+  <ul>{navigation.map(repo=>{
+    const active=repo.id===current;
+    if(!repo.versions)return <li><TreeNodes nodes={nest(active?headings:headingPages(repo.headings,repo.page.replace(/\.html$/,'')).flatMap(page=>page.headings))} pageHref={active?pageHref:undefined}/></li>;
+    return <li>
+      <button class="tree-repository" type="button" aria-label={repo.name} aria-expanded={String(active)}><span class="tree-branch" aria-hidden="true"><svg viewBox="0 0 12 12"><path d={active?'M2 6h8':'M2 6h8M6 2v8'}/></svg></span><span class="tree-repository-name">{repo.name.split('/').at(-1)}</span></button>
+      <div class="tree-children" hidden={!active}><TreeNodes nodes={nest(active?headings:headingPages(repo.headings,repo.page.replace(/\.html$/,'')).flatMap(page=>page.headings))} pageHref={active?pageHref:undefined}/></div>
+    </li>;
+  })}</ul>
+  </div>
+  <div class="tree-resize-handle" role="separator" aria-label="调整目录宽度" aria-orientation="vertical" aria-valuemin="128" aria-valuemax="480" aria-valuenow="220" tabindex="0"/>
+</aside>

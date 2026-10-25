@@ -1,0 +1,40 @@
+---
+import Header from '../components/Header.astro';
+import RepositoryTree from '../components/RepositoryTree.astro';
+import GitHubFiles from '../components/GitHubFiles.astro';
+import CodeDialog from '../components/CodeDialog.astro';
+import ReaderAnnotationEditor from '../components/ReaderAnnotationEditor.astro';
+import Tip from '../components/Tip.astro';
+import {serializeFileResources} from '../lib/file-resource.js';
+import {sidebarBootstrap} from '../lib/sidebar-state.js';
+import {prepareArticlePages} from '../build/article-pages.mjs';
+import {prepareArticleResources} from '../build/file-resources.mjs';
+import {articlePageBootstrap,serializeArticlePages} from '../lib/article-pages.js';
+import {readingContent} from '../lib/reading-content.js';
+const {repository,version,navigation,base,pageIndex=0,source,current,site}=Astro.props;
+const article=await prepareArticlePages(base,()=>Astro.slots.render('default'),base,!import.meta.env.DEV),page=article.pages[pageIndex];
+if(!page)throw Error('H1 分页不存在：'+pageIndex);
+const manifest={...article.manifest,headings:page.headings};
+const fileResources=await prepareArticleResources(page.references,Astro.url.pathname,article.blocks,article.manifest.anchors);
+---
+<!doctype html><html lang="zh-CN"><head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="generator" content={Astro.generator}/>
+  <title>{page.title}</title>
+  {repository&&<link rel="preload" as="fetch" crossorigin="anonymous" href={`/data/trees/v3/${repository.id}/${version.commit}.json`}/>}
+  <script is:inline>try{document.documentElement.dataset.theme=localStorage.getItem('theme')==='dark'?'dark':'light'}catch{}</script>
+  <script is:inline set:html={sidebarBootstrap}/>
+  <script id="article-pages" type="application/json" is:inline set:html={serializeArticlePages(manifest)}/>
+  <script id="document-options" type="application/json" is:inline set:html={JSON.stringify({mathAliases:site.mathAliases}).replace(/</g,'\\u003c')}/>
+  <script is:inline set:html={articlePageBootstrap}/>
+  <link rel="stylesheet" href="/assets/fonts/fonts.css"/><link rel="stylesheet" href="/assets/katex/katex.min.css"/><link rel="stylesheet" href="/styles.css"/>
+</head><body data-repository={repository?.id||current||''} data-repository-name={repository?.name||''} data-version={version?.id||''} data-commit={version?.commit||''} data-mdx-file={(site.content||'content').replace(/^\.\//,'')+'/'+source} data-source-url={version?.snapshot} data-article-page={page.id}>
+  <Header repository={repository} version={version} site={site}/>
+  <RepositoryTree navigation={navigation} current={current} headings={article.headings} pageHref={page.href} site={site}/>
+  <GitHubFiles repository={repository} version={version}/>
+  <main class="reading-viewport"><Fragment set:html={readingContent(page.html)}/></main>
+  <script id="file-resources" type="application/json" is:inline set:html={serializeFileResources(fileResources)}/>
+  <CodeDialog/><div id="notice" role="status"/>
+  <ReaderAnnotationEditor/>
+  <Tip id="note-description" interactive layer={100}/><Tip id="control-tip"/>
+  <script>import '../scripts/client.js';</script>
+</body></html>

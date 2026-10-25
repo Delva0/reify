@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {fileBrowserStateKey,readFileBrowserState,saveFileBrowserState} from '../src/lib/file-browser-state.js';
+const values=new Map(),storage={getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value)};
+const key=fileBrowserStateKey('owner/repo','first');
+saveFileBrowserState(key,{expanded:new Set(['src','src/nested']),suffix:'.cpp',file:'src/a.cpp',lines:'1-3,7'},storage);
+assert.deepEqual(readFileBrowserState(key,storage),{expanded:['src','src/nested'],suffix:'.cpp',file:'src/a.cpp',lines:'1-3,7'});
+assert.deepEqual(readFileBrowserState(fileBrowserStateKey('owner/repo','second'),storage),{expanded:[],suffix:null,file:null,lines:null});
+saveFileBrowserState(key,{expanded:new Set(['src/nested']),suffix:null,file:null},storage);
+assert.deepEqual(readFileBrowserState(key,storage),{expanded:['src/nested'],suffix:null,file:null,lines:null},'closing a parent preserves remembered child state; clearing selection and closing the code window persist');
+values.set(key,'not JSON');assert.deepEqual(readFileBrowserState(key,storage),{expanded:[],suffix:null,file:null,lines:null});
+values.set(key,JSON.stringify({expanded:['src','src',false],suffix:3,file:false}));assert.deepEqual(readFileBrowserState(key,storage),{expanded:['src'],suffix:null,file:null,lines:null});
+values.set(key,JSON.stringify({expanded:['src'],suffix:'.cpp',file:'src/a.cpp'}));assert.deepEqual(readFileBrowserState(key,storage),{expanded:['src'],suffix:'.cpp',file:'src/a.cpp',lines:null},'older saved selections remain compatible');
+saveFileBrowserState(key,{expanded:[],file:'src/a.cpp',lines:'1-2@blue,4@amber'},storage);
+assert.deepEqual(readFileBrowserState(key,storage),{expanded:[],suffix:null,file:'src/a.cpp',lines:'1-2@blue,4@amber'},'colored source ranges survive refresh');
+const denied={getItem(){throw Error('denied');},setItem(){throw Error('full');}};
+assert.deepEqual(readFileBrowserState(key,denied),{expanded:[],suffix:null,file:null,lines:null});assert.doesNotThrow(()=>saveFileBrowserState(key,{expanded:[]},denied));
+console.log('File browser state: reload round trip, commit isolation, clearing, collapsed parents, malformed and denied storage passed');

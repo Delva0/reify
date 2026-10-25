@@ -1,0 +1,6 @@
+---
+import {documentMarkup} from '../build/document-markup.mjs';
+let html,error=Astro.props.error;
+try{if(!error)html=documentMarkup(await Astro.slots.render('default'),Astro.props);}catch(reason){error=reason.message;}
+---
+{error?<div class="file-document" data-file-document><p class="document-error" role="status">{error}</p></div>:<Fragment set:html={html}/>}

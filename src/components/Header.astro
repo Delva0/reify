@@ -1,0 +1,23 @@
+---
+import Icon from './Icon.astro';
+import ReaderAnnotation from './ReaderAnnotation.astro';
+import Link from './Link.astro';
+const {repository,version,site}=Astro.props;
+---
+<header class="repo-header" data-floating-panel data-floating-layer="title" data-floating-persistent>
+  <a class="icon-button back-button" href={site.home} aria-label="返回目录" data-tip="返回"><Icon name="back"/></a>
+  <button class="icon-button tree-toggle" aria-label="展开目录" aria-expanded="false"><Icon name="tree"/></button>
+  {repository?<Link href={'https://github.com/'+repository.name} target="_blank" rel="noreferrer">{repository.name}</Link>:<span>{site.title}</span>}
+  {repository&&<div class="version-picker">
+    <button class="version-trigger" aria-label={'选择仓库版本，当前 '+version.label} data-tip="切换版本" aria-expanded="false" aria-controls="version-menu"><span>{version.label}</span><Icon name="chevron"/></button>
+    <div class="version-menu" id="version-menu" hidden>
+      {repository.versions.map(v=><a href={`${repository.id}-${v.id}.html`} aria-current={v.id===version.id?'page':undefined}>{v.label}</a>)}
+    </div>
+  </div>}
+  {repository&&<button class="icon-button github-files-toggle" aria-label="展开文件列表" aria-expanded="false" aria-controls="github-files"><Icon name="folder"/></button>}
+  <ReaderAnnotation/>
+  <button class="icon-button theme-toggle" aria-label="切换黑色模式" data-tip="切换主题">
+    <span data-theme-icon="light"><Icon name="moon"/></span>
+    <span data-theme-icon="dark" hidden><Icon name="sun"/></span>
+  </button>
+</header>

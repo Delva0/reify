@@ -1,0 +1,10 @@
+---
+import {compileDocument} from '../build/document-compiler.mjs';
+import {mdxComponents} from '../mdx-components.mjs';
+import DocumentView from './DocumentView.astro';
+import * as runtime from 'astro/jsx-runtime';
+const {code,format,id,sourceUrl,title}=Astro.props,components=mdxComponents();
+let Content,error;
+try{Content=await compileDocument(code,{format,components,site:Astro.locals.site,runtime});}catch(reason){error=reason.message;}
+---
+<DocumentView id={id} title={title} sourceUrl={sourceUrl} error={error}>{Content&&<Content components={components}/>}</DocumentView>

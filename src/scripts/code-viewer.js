@@ -1,0 +1,72 @@
+import {$} from '../lib/dom.js';
+import {createCodeDialog} from './code-dialog.js';
+import {registerFpType} from './fp-navigation.js';
+import {readFile} from '../lib/github-files.js';
+import {fileResource,fileResourceTitle} from '../lib/file-resource.js';
+import {isWebFile} from '../lib/code-props.js';
+import {languageLabel,resourceLanguage} from '../lib/code-language.js';
+import {cachedFileResource} from './file-resources.js';
+import {bundledSource} from './sources.js';
+import {articleCodeBlock} from './article-pages.js';
+import {codeBlockDefinition} from '../lib/code-block.js';
+import {hasCodeAnnotations} from '../lib/code-annotations.js';
+import {documentFormat} from '../lib/document-format.js';
+
+export function initCodeViewers(){registerFpType('code',(props,{onClose,onDetach,onAttach,origin,parentsReady=[]})=>{
+ const viewer=createCodeDialog({onClose,onDetach,onAttach});
+ const load=async()=>{
+  let current=viewer.update({title:'代码',message:'读取代码…'}),file=props.file,ranges=props.ranges||[],annotations={},definition,sourceOrigin=origin;
+  const alive=()=>viewer.alive(current);
+  const documentView=async(pre,{src=file,language='text',prepared}={})=>{
+   const format=documentFormat({src,language});if(!format)return;
+   const identity=definition?.id||src||props.block,digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity)),id='doc-'+Array.from(new Uint8Array(digest)).slice(0,8).map(byte=>byte.toString(16).padStart(2,'0')).join('');
+   const options={id,title:src||language,sourceUrl:src?fileResource(src,{repository:document.body.dataset.repositoryName,commit:document.body.dataset.commit}).url:undefined};
+   if(prepared){
+    const payload=JSON.parse(prepared.dataset.documentData||'null');
+    if(payload){const {documentMarkup}=await import('../build/document-markup.mjs');return new DOMParser().parseFromString(documentMarkup(payload.pages.map(page=>page.html).join(''),options),'text/html').querySelector('[data-file-document]');}
+    return prepared;
+   }
+   try{const {renderFileDocument}=await import('./document-render.js'),site=JSON.parse(document.querySelector('#document-options')?.textContent||'{}');return await renderFileDocument(pre.textContent,{...options,format,site});}
+   catch(error){const view=document.createElement('div'),message=document.createElement('p');view.className='file-document';view.dataset.fileDocument='';message.className='document-error';message.textContent=error.message;view.append(message);return view;}
+  };
+  try{
+   if(props.block){
+    let element=await articleCodeBlock(props.block);if(!element&&parentsReady.length){await Promise.allSettled(parentsReady);element=await articleCodeBlock(props.block);}if(!alive())return;
+    if(!element)throw Error('代码块不存在：'+props.block);
+    definition=codeBlockDefinition(element);sourceOrigin=element.closest('[data-mdx-line]');
+    const pre=element.matches('.code-block')?$('pre',element):null,prepared=(element.content||element).querySelector('[data-file-document]');
+    if(pre){const view=await documentView(pre,{src:definition?.src,language:element.dataset.language,prepared});if(alive())viewer.update({title:$('.code-language',element)?.textContent||'文本',pre:pre.cloneNode(true),sourceFile:definition?.src||'',origin:sourceOrigin,ranges:definition?.ranges||[],documentView:view});return;}
+    if(!definition)throw Error('代码块定义无效：'+props.block);
+    file=definition.src;ranges=definition.ranges;annotations=definition;
+    if(definition.code!==undefined){
+     const {highlightSource}=await import('../lib/source-highlight.js'),html=await highlightSource(definition.code,definition.language);if(!alive())return;
+     const pre=new DOMParser().parseFromString(html,'text/html').querySelector('pre');if(!pre)throw Error('代码高亮加载失败');pre.classList.add('astro-code');
+     const {decorateCode}=await import('./code-annotations.js');await decorateCode(pre,annotations);
+     const view=await documentView(pre,{src:undefined,language:definition.language,prepared});
+     if(alive())viewer.update({title:languageLabel(definition.language),pre,origin:sourceOrigin,ranges,documentView:view});return;
+    }
+   }
+   const resource=fileResource(file,{repository:document.body.dataset.repositoryName,commit:document.body.dataset.commit}),title=fileResourceTitle(resource),href=resource.href;
+   const update=options=>viewer.update({title,sourceFile:file,origin:sourceOrigin,ranges,...options});
+   const requireText=()=>{if(hasCodeAnnotations(annotations)||ranges.length)throw Error('行范围与代码标注只能用于文本文件');};
+   const show=async(pre,codeTitle=title)=>{
+    const {decorateCode}=await import('./code-annotations.js');await decorateCode(pre,annotations);
+    const prepared=definition&&(await articleCodeBlock(definition.id))?.content?.querySelector('[data-file-document]'),view=await documentView(pre,{language:definition?.language||resource.language,prepared});
+    if(alive())update({title:codeTitle,pre,documentView:view});
+   };
+   const cached=await cachedFileResource(resource.url).catch(()=>null);if(!alive())return;
+   if(cached&&(!definition?.language||cached.language===definition.language)){
+    if(cached.kind==='code'){const pre=new DOMParser().parseFromString(cached.html,'text/html').querySelector('pre');if(!pre)throw Error('代码缓存无效');pre.classList.add('astro-code');await show(pre,resource.title+' · '+languageLabel(cached.language));}
+    else{requireText();if(cached.kind==='image')update({title:resource.title,image:cached.blob});else update({message:cached.message,href});}
+    return;
+   }
+   const local=isWebFile(file)?null:await bundledSource(file).catch(()=>null);if(!alive())return;if(local&&(!definition||definition.language===resource.language)){await show(local);return;}
+   const content=await readFile(resource.url);if(!alive())return;
+   if(content.kind==='image'){requireText();update({title:resource.title,image:content.blob});return;}
+   if(content.kind!=='text'){requireText();update({message:content.message,href});return;}
+   const {highlightSource}=await import('../lib/source-highlight.js'),language=definition?.language||resourceLanguage(resource.path,content.contentType),html=await highlightSource(content.text,language);if(!alive())return;
+   const pre=new DOMParser().parseFromString(html,'text/html').querySelector('pre');if(!pre)throw Error('代码高亮加载失败');pre.classList.add('astro-code');await show(pre,resource.title+' · '+languageLabel(language));
+  }catch(error){if(alive())viewer.update({title:'代码',message:error.message||'代码暂时无法读取',retry:load});}
+ };
+ viewer.ready=load();return viewer;
+});}

@@ -1,0 +1,7 @@
+---
+import Link from './Link.astro';
+const facts=Astro.locals.repositoryFacts||{repositories:{}};
+const id=Astro.locals.repositoryId;
+const repository=facts.repositories[id];
+---
+{repository&&<div class="table-wrap" id="repository-summary"><table><thead><tr><th>仓库</th><th>固定提交</th></tr></thead><tbody><tr><td><Link href={repository.url} target="_blank" rel="noreferrer">{new URL(repository.url).pathname.slice(1)}</Link></td><td><code>{repository.commit}</code></td></tr></tbody></table></div>}

@@ -1,0 +1,14 @@
+---
+import Icon from './Icon.astro';
+import SymmetricButton from './SymmetricButton.astro';
+import {blockHref} from '../lib/code-links.js';
+const {block,expandable=false,closable=false,navigation=false,document=false}=Astro.props;
+---
+<div class="code-tools">
+ <button type="button" class="icon-button" data-code-document aria-label="源码" data-tip="源码" aria-pressed="false" hidden={!document}><Icon name="language"/></button>
+ {navigation&&<SymmetricButton data-code-ranges label="段落导航" tip="上/下一段" first={{'aria-label':'上一段','data-code-previous':''}} second={{'aria-label':'下一段','data-code-next':''}} hidden/>}
+ <button type="button" class="icon-button" data-code-wrap aria-label="自动换行" aria-pressed="false" data-tip="自动换行"><Icon name="nowrap"/></button>
+ <button type="button" class="icon-button" data-code-copy aria-label="复制代码" data-tip="复制"><Icon name="copy"/></button>
+ {expandable&&<a class="icon-button" data-code-toggle data-link href={blockHref(block)} aria-label="展开代码浮窗" data-tip="展开"><Icon name="expand"/></a>}
+ {closable&&<button type="button" data-close-source class="icon-button" aria-label="关闭" data-tip="关闭"><Icon name="close"/></button>}
+</div>

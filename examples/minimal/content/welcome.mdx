@@ -1,0 +1,23 @@
+# 从一个问题开始
+
+这是一篇不关联代码仓库的独立文章。
+
+<TextNote desc="补充理解所需的局部信息。">解释可以附在原处</TextNote>，正文保持连续。
+
+$$
+\primary{y}=f(\secondary{x})
+$$
+
+<CodeBlock id="transform" language="python" code={"def transform(x):\n    return x + 1"} notes={{"x + 1":"输入经过一次变换。"}} />
+
+[在浮窗中查看](?fp=code&block=transform)
+
+<CodeBlock id="document-example" language="markdown" code={"# 文档视图\n\n内容采用同一套渲染。公式 $y=f(x)$、[下一主题](#mdx-3) 与代码都可阅读。\n\n## 关键调用\n\n```python\nresult = transform(value)\n```\n\n# 第二个主题\n\n左侧目录按 H1 分页；源码按钮保留原始文本。"} />
+
+[打开文档](?fp=code&block=document-example)
+
+# 检查结果
+
+H1 可以划分逻辑页，内容仍保存在同一个 MDX 中。
+
+[返回前文](#mdx-1)，或[打开前一页的代码块](?fp=code&block=transform)。

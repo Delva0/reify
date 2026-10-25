@@ -1,0 +1,8 @@
+---
+const {name}=Astro.props;
+import {iconPaths,iconShapes} from '../lib/icon-definitions.js';
+---
+<svg viewBox="0 0 20 20" aria-hidden="true">
+  {(iconShapes[name]||[]).map(([Tag,attrs])=><Tag {...attrs}/>)}
+  {iconPaths[name]&&<path d={iconPaths[name]}/>}
+</svg>

@@ -1,0 +1,21 @@
+---
+import {Code} from 'astro:components';
+import CodeTools from './CodeTools.astro';
+import {sourceProps} from '../markdown.mjs';
+import {codeAnnotations} from '../build/code-annotations.mjs';
+import {codeBlockId} from '../lib/code-block-id.js';
+import {normalizeCodeBlock,serializeCodeBlock} from '../lib/code-block.js';
+import {loadCodeSource} from '../build/file-resources.mjs';
+import {documentFormat} from '../lib/document-format.js';
+import DocumentFragment from './DocumentFragment.astro';
+const block=normalizeCodeBlock({...Astro.props,id:Astro.props.id||codeBlockId(Astro.props.code??Astro.props.src??'',Astro.props)});
+const format=documentFormat(block);
+const source=(block.render||format)&&block.src?await loadCodeSource(block.src,Astro.url.pathname):null;
+const language=Astro.props.language||source?.language||block.language;
+block.language=language;
+const text=source?.code??block.code;
+const metadata=serializeCodeBlock(block);
+const documentId='doc-'+codeBlockId(block.id,{}).slice(5);
+const sourceUrl=source?.url;
+---
+{block.render?<div id={block.id} class="code-block" data-language={language} data-overflow={block.scroll?'scroll':'full'} data-document-mode={format?'rendered':undefined} {...sourceProps(Astro.props)}><template data-code-definition={metadata}/><CodeTools block={block.id} language={language} scroll={block.scroll} expandable={block.expandable} document={Boolean(format)}/><Code code={text} lang={language} themes={{light:'github-light',dark:'github-dark'}} transformers={[codeAnnotations(block)]}/>{format&&<DocumentFragment id={documentId} code={text} format={format} sourceUrl={sourceUrl} title={block.src}/>}</div>:<template id={block.id} data-code-definition={metadata} {...sourceProps(Astro.props)}>{format&&<DocumentFragment id={documentId} code={text} format={format} sourceUrl={sourceUrl} title={block.src}/>}</template>}

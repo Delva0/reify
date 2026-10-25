@@ -1,0 +1,1 @@
+export function nestHeadings(items){const roots=[],stack=[];for(const item of items){const node={...item,children:[]};while(stack.length&&stack.at(-1).depth>=node.depth)stack.pop();(stack.at(-1)?.children||roots).push(node);stack.push(node);}return roots;}

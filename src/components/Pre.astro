@@ -1,0 +1,8 @@
+---
+import CodeTools from './CodeTools.astro';
+import {codeBlockId} from '../lib/code-block-id.js';
+const language=Astro.props['data-language']||'text';
+const content=await Astro.slots.render('default');
+const blockId=codeBlockId(content,Astro.props);
+---
+<div id={blockId} class="code-block" data-language={language} data-overflow="full"><CodeTools block={blockId} language={language}/><pre {...Astro.props}><Fragment set:html={content}/></pre></div>

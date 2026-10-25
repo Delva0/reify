@@ -1,0 +1,9 @@
+---
+import {languageLabel} from '../lib/code-language.js';
+import CodeActions from './CodeActions.astro';
+const {language='text',scroll=false,expandable=true,block,document=false}=Astro.props;
+---
+<div class="code-header">
+ <span class="code-language">{languageLabel(language)}</span>
+ <CodeActions block={block} expandable={expandable} document={document}/>
+</div>

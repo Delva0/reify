@@ -1,0 +1,4 @@
+---
+const {id,interactive=false,layer='title'}=Astro.props;
+---
+<span id={id} class:list={['tip',interactive?'annotation-desc':'control-tip']} role="tooltip" hidden data-floating-panel data-floating-layer={layer} data-floating-persistent={!interactive||undefined} style={'z-index:'+(layer==='title'?2147483647:layer)}/>

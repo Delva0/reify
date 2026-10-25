@@ -1,0 +1,6 @@
+---
+import {sourceProps} from '../markdown.mjs';
+import Link from './Link.astro';
+const {href,desc,label,target,rel}=Astro.props,Tag=href?Link:'span';
+---
+<Tag class="text-note" href={href} target={target} rel={rel} role={href?undefined:'button'} tabindex={href?undefined:0} aria-label={label} data-note-description={desc} {...sourceProps(Astro.props)}><slot/></Tag>

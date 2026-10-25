@@ -1,0 +1,5 @@
+---
+import {linkKind} from '../lib/links.js';
+const {href,...props}=Astro.props;
+---
+<a href={href} data-link data-link-kind={linkKind(href,Astro.url.href)} {...props}><slot/></a>

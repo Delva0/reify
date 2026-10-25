@@ -1,0 +1,6 @@
+---
+import {sourceProps} from '../markdown.mjs';
+import Link from './Link.astro';
+const {items}=Astro.props;
+---
+<div class="refs" {...sourceProps(Astro.props)}>源码：{items.map(item=><Link href={item.href} target={item.href.startsWith('http')?'_blank':undefined} rel="noreferrer">{item.label}</Link>)}</div>
