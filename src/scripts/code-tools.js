@@ -17,7 +17,7 @@ export function enhanceCodeBlocks(root=document){
   let tools=$('.code-tools',block);if(!tools){tools=document.createElement('div');tools.className='code-tools';block.append(tools);}
   if(!$('[data-code-wrap]',tools))tools.prepend(tool('data-code-wrap','自动换行','nowrap'));
   if(!$('[data-code-copy]',tools))tools.append(tool('data-code-copy','复制代码','copy'));
-  if(block.id&&!$('[data-code-toggle]',tools))tools.append(tool('data-code-toggle','展开代码浮窗','expand',blockHref(block.id)));
+  if(block.id&&!$('[data-code-toggle]',tools))tools.append(tool('data-code-toggle','展开代码浮窗','expand',blockHref(block.dataset.codeReference||block.id)));
   for(const button of $$('button',tools))button.type='button';
  }
 }

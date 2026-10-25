@@ -22,6 +22,15 @@ export const fpTypes={code:{
   if(own(props,'block')&&props.ranges?.length)throw Error('block 的行范围定义于 CodeBlock');
  },
  format(props){return {...(props.file?{file:props.file}:{block:props.block}),...(props.ranges?.length?{lines:formatLineRanges(props.ranges)}:{})};}
+},page:{
+ fields:['url'],
+ parse(fields){this.validate(fields);return {url:fields.url};},
+ validate(props){
+  if(Object.keys(props).some(key=>key!=='url')||typeof props.url!=='string'||!props.url||props.url.length>16384)throw Error('page 需要有效的 url');
+  let url;try{url=new URL(props.url,'https://page.invalid/');}catch{throw Error('网页 URL 无效');}
+  if(!/^https?:$/.test(url.protocol)||url.username||url.password)throw Error('网页 URL 仅支持无登录信息的 HTTP/HTTPS');
+ },
+ format(props){return {url:props.url};}
 }};
 
 export function validateFpState(state=[]){

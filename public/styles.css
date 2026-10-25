@@ -17,13 +17,18 @@
  --selection:#b8b8b8;--selection-ink:#000;--underline:#707070;--scroll-thumb:#555;
  --math-primary:#8caed0;--math-secondary:#c8a37e;
 }
-*{box-sizing:border-box;--scroll-thumb-color:transparent}
-*:hover{--scroll-thumb-color:var(--scroll-thumb)}
+*{box-sizing:border-box;scrollbar-color:auto;scrollbar-width:auto;--scrollbar-thumb-paint:transparent}
+*:hover{--scrollbar-thumb-paint:var(--scroll-thumb)}
 *::-webkit-scrollbar{width:8px;height:8px}
 *::-webkit-scrollbar-track,*::-webkit-scrollbar-corner{background:transparent}
 *::-webkit-scrollbar-button{display:none;width:0;height:0}
-*::-webkit-scrollbar-thumb{border:2px solid transparent;background-color:var(--scroll-thumb-color);background-clip:padding-box}
+*::-webkit-scrollbar-thumb{border:2px solid transparent;background-color:var(--scrollbar-thumb-paint);background-clip:padding-box}
+*::-webkit-scrollbar-thumb:hover{background-color:var(--scroll-thumb)}
 *::-webkit-scrollbar-thumb:active{background-color:var(--scroll-thumb)}
+@supports not selector(::-webkit-scrollbar){
+ *{scrollbar-width:thin;scrollbar-color:transparent transparent}
+ *:hover{scrollbar-color:var(--scroll-thumb) transparent}
+}
 *::selection{background:var(--selection);color:var(--selection-ink)}
 [hidden]{display:none!important}
 html{scroll-padding-top:74px;scrollbar-gutter:stable}
@@ -246,6 +251,10 @@ dialog[data-modal=false]>[data-source-code],dialog[data-modal=false]>[data-sourc
 [data-source-preview] p:only-child{margin:0}
 [data-source-preview] img{display:block;max-width:100%;height:auto;margin:auto}
 [data-source-preview] button{margin-left:12px}
+[data-page-viewer=article] [data-code-document],[data-page-viewer=web] [data-code-document],[data-page-viewer=web] [data-code-copy],[data-page-viewer=web] [data-code-wrap],[data-page-viewer=web]>[data-source-code]{display:none!important}
+[data-page-viewer=web]>[data-source-preview]{height:calc(var(--panel-max-height) - var(--dialog-bar-height) - 2px);padding:0;overflow:hidden}
+[data-page-viewer=web] iframe{display:block;width:100%;height:100%;border:0;background:var(--paper)}
+.dialog-head [data-page-address]{text-decoration:none;color:inherit}
 
 /* Document files use the article renderer and a local heading tree. */
 .file-document{display:grid;grid-template-columns:minmax(128px,var(--tree-width,220px)) minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-height:0;max-height:calc(var(--panel-max-height,640px) - var(--dialog-bar-height) - 2px);background:var(--paper)}

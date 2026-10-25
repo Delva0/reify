@@ -5,17 +5,19 @@ import {markLink} from '../lib/links.js';
 import {setCodeText,codeIcon} from './code-controls.js';
 import {bindPanelDrag} from './panel-drag.js';
 import {bindPanelWheel} from './panel-wheel.js';
+import {enhanceFloatingLinks} from './fp-navigation.js';
 import {panelPosition,panelResizeCorner} from '../lib/panel-position.js';
-import {mountDocumentView,unmountDocumentView,documentRangeTarget,setDocumentMode,documentViewState,restoreDocumentViewState} from './document-view.js';
+import {readingSnapshot} from '../lib/fp-session.js';
+import {mountDocumentView,unmountDocumentView,documentRangeTarget,setDocumentMode,documentViewState,restoreDocumentViewState,cloneDocumentView} from './document-view.js';
 let nextId=0;
 const validBox=box=>box&&['left','top','width','height'].every(key=>Number.isFinite(box[key]))&&box.width>0&&box.height>0;
 
 export function createCodeDialog({onClose,onDetach,onAttach,onStateChange,parentPanel,sessionId,restore:initialState}={}){
  const dialog=$('#code-viewer-template').content.firstElementChild.cloneNode(true),code=$('[data-source-code]',dialog),preview=$('[data-source-preview]',dialog),documentHost=$('[data-source-document]',dialog);
  dialog.id='code-viewer-'+(++nextId);if(sessionId)dialog.dataset.fpSessionId=sessionId;dialog.setAttribute('aria-labelledby',dialog.id+'-title');$('[data-source-title]',dialog).id=dialog.id+'-title';
- let revision=0,imageUrl,closed=false,navigationRanges=[],lastJump,lastNonModalBox,lastExpandedHeight,pendingRestore=initialState,restoring=false,contentReady=false;
+ let revision=0,imageUrl,closed=false,navigationRanges=[],lastJump,lastNonModalBox,lastExpandedHeight,pendingRestore=initialState,restoring=false,contentReady=false,lastContentSnapshot;
  const notify=()=>{if(!closed&&!restoring)onStateChange?.();};
- const edited=()=>{if(!restoring)pendingRestore=null;notify();};
+ const edited=()=>{if(!restoring)pendingRestore=contentReady?null:readingSnapshot(pendingRestore||lastContentSnapshot);notify();};
  document.body.append(dialog);
  const scrollPositions=()=>[code,preview,...documentHost.querySelectorAll('[data-document-content],.document-outline')].map(node=>[node,node.scrollTop,node.scrollLeft]);
  const restoreScroll=positions=>{for(const [node,top,left]of positions){node.scrollTop=top;node.scrollLeft=left;}};
@@ -53,8 +55,8 @@ export function createCodeDialog({onClose,onDetach,onAttach,onStateChange,parent
  });
  const releaseImage=()=>{if(imageUrl)URL.revokeObjectURL(imageUrl);imageUrl=undefined;};
  const close=()=>{
-  if(closed)return;closed=true;++revision;unbindDrag();unbindWheel();geometryObserver.disconnect();rangeObserver.disconnect();documentObserver.disconnect();cancelAnimationFrame(navigationFrame);releaseImage();for(const view of documentHost.querySelectorAll(':scope > [data-file-document]'))unmountDocumentView(view);dialog.dispatchEvent(new Event('sourcechange'));dialog.close();unregisterFloatingPanel(dialog);dialog.remove();
-  onClose?.();
+  if(closed)return;const finalSnapshot=snapshot();closed=true;++revision;unbindDrag();unbindWheel();geometryObserver.disconnect();rangeObserver.disconnect();documentObserver.disconnect();cancelAnimationFrame(navigationFrame);releaseImage();for(const view of documentHost.querySelectorAll(':scope > [data-file-document]'))unmountDocumentView(view);dialog.dispatchEvent(new Event('sourcechange'));dialog.close();unregisterFloatingPanel(dialog);dialog.remove();
+  onClose?.(finalSnapshot);
  };
  registerFloatingPanel(dialog,close,{parent:parentPanel,onBackdrop:()=>detach(lastNonModalBox),onChange:notify});$('[data-close-source]',dialog).addEventListener('click',close);
  const geometryObserver=new ResizeObserver(notify);geometryObserver.observe(dialog);
@@ -64,7 +66,8 @@ export function createCodeDialog({onClose,onDetach,onAttach,onStateChange,parent
  const snapshot=()=>{
   const box=dialog.getBoundingClientRect();
   const state={modal:dialog.dataset.modal!=='false',box:{left:box.left,top:box.top,width:box.width,height:box.height},lastNonModalBox,lastExpandedHeight,wrap:dialog.dataset.wrap==='true',documentWrap:dialog.dataset.documentWrap!=='false',documentMode:dialog.dataset.documentMode,documents:[...documentHost.querySelectorAll(':scope > [data-file-document]')].map(documentViewState),scroll:scrollPositions().map(([,top,left])=>({top,left}))};
-  return !contentReady&&pendingRestore?{...pendingRestore,modal:state.modal,box:validBox(state.box)?state.box:pendingRestore.box}:state;
+  const pending=pendingRestore||lastContentSnapshot;
+  return !contentReady?{lastNonModalBox,lastExpandedHeight,...pending,modal:state.modal,box:validBox(state.box)?state.box:pending?.box}:state;
  };
  const applyRestore=()=>{
   if(!pendingRestore)return;restoring=true;
@@ -149,6 +152,7 @@ export function createCodeDialog({onClose,onDetach,onAttach,onStateChange,parent
  dialog.addEventListener('close',close);
  const update=({title,text,pre,sourceFile='',origin,ranges=[],documentView,message,href,image,retry})=>{
  if(closed)return;
+ if(contentReady){lastContentSnapshot=snapshot();pendingRestore={...pendingRestore,...readingSnapshot(lastContentSnapshot)};}
  contentReady=!message;
  const highlighted=pre?[...pre.querySelectorAll(':scope > code > .line')]:[];
  const lines=message||image?[]:highlighted.length?highlighted:(text??pre?.textContent??'').split('\n');
@@ -181,14 +185,14 @@ export function createCodeDialog({onClose,onDetach,onAttach,onStateChange,parent
  });
  const canvas=document.createElement('div');canvas.className='source-lines';canvas.append(content);
  $('[data-source-title]',dialog).textContent=title;code.className=pre?.className||'';code.replaceChildren(canvas);code.scrollTop=0;code.scrollLeft=0;
- if(documentView){const view=documentView.cloneNode(true);documentHost.append(view);mountDocumentView(view,dialog,selectedRanges);}
+ if(documentView){const view=cloneDocumentView(documentView);documentHost.append(view);mountDocumentView(view,dialog,selectedRanges);}
  dialog.dataset.sourceFile=sourceFile;
  dialog.dataset.sourceRanges=formatLineRanges(selectedRanges);
  for(const name of ['mdxLine','mdxColumn','mdxEndLine','mdxEndColumn']){if(origin?.dataset[name])dialog.dataset[name]=origin.dataset[name];else delete dialog.dataset[name];}
  if(!dialog.open)dialog.show();setFloatingModal(dialog,dialog.dataset.modal!=='false');applyRestore();
  if(navigationRanges.length){rangeObserver.observe(canvas);rangeObserver.observe(dialog);documentObserver.observe(documentHost,{childList:true,subtree:true});initializeNavigation();}
- else if(code.querySelector('[data-code-annotation-group]')){const opened=revision;requestAnimationFrame(()=>{if(revision!==opened||!dialog.open)return;const target=$('[data-code-annotation-group]',code);if(target&&!rendered())code.scrollTop=Math.max(0,target.getBoundingClientRect().top-code.getBoundingClientRect().top+code.scrollTop-24);});}
- notify();return revision;
+ else if(!pendingRestore?.scroll?.length&&code.querySelector('[data-code-annotation-group]')){const opened=revision;requestAnimationFrame(()=>{if(revision!==opened||!dialog.open)return;const target=$('[data-code-annotation-group]',code);if(target&&!rendered())code.scrollTop=Math.max(0,target.getBoundingClientRect().top-code.getBoundingClientRect().top+code.scrollTop-24);});}
+ enhanceFloatingLinks(dialog);notify();return revision;
  };
  return {panel:dialog,update,close,snapshot,restore,current:()=>revision,alive:version=>!closed&&revision===version};
 }

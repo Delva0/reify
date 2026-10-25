@@ -13,6 +13,7 @@ test('incremental article changes keep source snapshots and highlighting isolate
   assert((await bundledSource('same.cpp')).html.includes('/aaa/'));
   dataset.sourceUrl='/data/b.json';dataset.commit='bbb';assert.equal(await sourceText('same.cpp'),'source B');assert((await bundledSource('same.cpp')).html.includes('/bbb/'));
   dataset.sourceUrl='/data/a.json';dataset.commit='aaa';assert.equal(await sourceText('same.cpp'),'source A');await bundledSource('same.cpp');
+  const fixed={sourceUrl:'/data/b.json',commit:'bbb'};assert.equal(await sourceText('same.cpp',fixed),'source B');assert((await bundledSource('same.cpp',fixed)).html.includes('/bbb/'),'a child FP uses its source article rather than the host body');
   assert.equal(calls.filter(url=>url.endsWith('.json')).length,2,'returning to an article reuses its own immutable source snapshot');
   assert.equal(calls.filter(url=>url.endsWith('.html')).length,2,'same paths from different commits never share a highlighted source');
  }finally{for(const [key,descriptor]of saved)if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}

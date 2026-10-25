@@ -33,7 +33,7 @@ export function paginateArticle(html,base,{allowUntitled=false,title='文档'}={
  const fragments=pages.map(()=>[]);
  for(const child of root.childNodes)for(const [index,node]of distribute(child))fragments[index].push(node);
  const anchors=Object.create(null);
- fragments.forEach((nodes,index)=>nodes.forEach(node=>walk(node,item=>{const id=attr(item,'id');if(!id)return;if(anchors[id]&&anchors[id]!==pages[index].href)throw Error('跨 H1 重复的 id：'+id);anchors[id]=pages[index].href;})));
+ fragments.forEach((nodes,index)=>nodes.forEach(node=>walk(node,item=>{for(const id of new Set([attr(item,'id'),attr(item,'data-code-reference')])){if(!id)continue;if(anchors[id]&&anchors[id]!==pages[index].href)throw Error('跨 H1 重复的 id：'+id);anchors[id]=pages[index].href;}})));
  pages.forEach((page,index)=>{
   const references=new Set(),nodes=fragments[index];
   for(const node of nodes)walk(node,item=>{if(/^h[1-6]$/.test(item.tagName||''))linkHeading(item,'#'+attr(item,'id'));});

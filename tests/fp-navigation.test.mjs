@@ -6,7 +6,7 @@ import {fpSessionKey} from '../src/lib/fp-session.js';
 const descriptors=new Map(),install=(key,value)=>{descriptors.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});};
 const a={type:'code',props:{file:'src/a.cpp',ranges:[{from:10,to:20}]}},b={type:'code',props:{file:'src/b.cpp',ranges:[]}},storage=new Map(),listeners=new Map(),opened=[],changes=[];
 assert.deepEqual(appendFpState([a],[b]),[a,b],'opening a child FP preserves its parent');
-assert.deepEqual(appendFpState([a,b],[a]),[b,a],'reopening an existing FP raises it without duplicating the state');
+assert.deepEqual(appendFpState([a,b],[a]),[a,b,a],'each opening appends a distinct occurrence, even for the same target');
 assert.throws(()=>appendFpState(Array.from({length:16},(_value,index)=>({type:'code',props:{file:index+'.md',ranges:[]}})),[a]),/16/,'nested links respect the same panel limit before creating a viewer');
 try{
  install('location',new URL('https://example.test/article.html?theme=light#mdx-3'));
@@ -14,7 +14,7 @@ try{
  storage.set('floating-panels-v1:owner/repo@commit',JSON.stringify([a,b]));
  install('document',{body:{dataset:{repositoryName:'owner/repo',commit:'commit'}},querySelector:()=>null,addEventListener:(name,fn)=>listeners.set(name,fn),dispatchEvent:event=>changes.push(event.detail.state)});
  install('addEventListener',(name,fn)=>listeners.set(name,fn));
- install('history',{state:null,pushState(_state,_title,url){globalThis.location=new URL(url);},replaceState(_state,_title,url){globalThis.location=new URL(url);}});
+ install('history',{state:null,pushState(state,_title,url){this.state=state;globalThis.location=new URL(url);},replaceState(state,_title,url){this.state=state;globalThis.location=new URL(url);}});
  const factory=(props,{onClose,onDetach,onAttach,parentsReady})=>{const view={props,parentsReady,ready:Promise.resolve(),panel:{dataset:{},style:{}},closed:false,detach(){onDetach();},attach(){onAttach();},close(){if(!view.closed){view.closed=true;onClose();}}};opened.push(view);return view;};
  registerFpType('code',factory);initFpNavigation();assert.deepEqual(floatingPanelState(),[a,b],'refresh restores every saved panel');assert(location.search.startsWith('?theme=light&fp=!('));
  const first=opened[0],second=opened[1];assert.deepEqual(first.parentsReady,[]);assert.deepEqual(second.parentsReady,[first.ready],'refresh dependencies include prior panels so nested block definitions can load');second.close();assert.deepEqual(floatingPanelState(),[a]);assert(!first.closed,'closing the top panel preserves the existing lower instance');assert(location.search.includes('fp=code&file=src/a.cpp'));

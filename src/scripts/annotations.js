@@ -3,6 +3,7 @@ import {registerFloatingPanel,setFloatingParent,raiseFloatingPanel,setFloatingMo
 import {altHeld,hasAlt,watchAlt} from '../lib/alt.js';
 import {positionTip} from '../lib/position-tip.js';
 import {transientSession,nodeReference,resolveNode,panelGeometry,restorePanelGeometry} from '../lib/transient-session.js';
+import {readingContext,setReadingContext} from '../lib/reading-context.js';
 let initialized=false;
 export function hydrateAnnotations(root=document){
  const notes=new Map();
@@ -33,6 +34,7 @@ export function initAnnotations(){
   group=trigger.dataset.noteGroup===undefined?[trigger]:$$('[data-note-group]',scope).filter(node=>node.dataset.noteGroup===trigger.dataset.noteGroup);
   for(const node of group){node.classList.add('note-active');node.setAttribute('aria-describedby',description.id);}
   document.body.append(description);
+  setReadingContext(description,readingContext(trigger));
   description.textContent=trigger.dataset.noteDescription;description.hidden=false;
   setFloatingParent(description,trigger);raiseFloatingPanel(description);
   trigger.setAttribute('aria-describedby',description.id);position();

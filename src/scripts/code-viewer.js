@@ -11,18 +11,22 @@ import {articleCodeBlock} from './article-pages.js';
 import {codeBlockDefinition,normalizeCodeBlock} from '../lib/code-block.js';
 import {hasCodeAnnotations} from '../lib/code-annotations.js';
 import {documentFormat} from '../lib/document-format.js';
+import {readingContext,setReadingContext} from '../lib/reading-context.js';
 
 export function initCodeViewers(){registerFpType('code',(props,context)=>{
  const {origin,parentsReady=[]}=context,viewer=createCodeDialog(context);
+ let resourceContext=context.restore?.resourceContext||(origin?readingContext(origin):context.parentPanel?null:readingContext());
+ if(resourceContext)setReadingContext(viewer.panel,resourceContext);
+ const resolveResource=file=>fileResource(!isWebFile(file)&&!resourceContext.repositoryName?new URL(file,resourceContext.url).href:file,{repository:resourceContext.repositoryName,commit:resourceContext.commit});
  let retainedDefinition=context.restore?.definition;
- const snapshot=viewer.snapshot;viewer.snapshot=()=>({...snapshot(),...(retainedDefinition?{definition:retainedDefinition}:{})});
+ const snapshot=viewer.snapshot;viewer.snapshot=()=>({...snapshot(),...(resourceContext?{resourceContext}:{}),...(retainedDefinition?{definition:retainedDefinition}:{})});
  const load=async()=>{
   let current=viewer.update({title:'代码',message:'读取代码…'}),file=props.file,ranges=props.ranges||[],annotations={},definition,sourceOrigin=origin;
   const alive=()=>viewer.alive(current);
   const documentView=async(pre,{src=file,language='text',prepared}={})=>{
    const format=documentFormat({src,language});if(!format)return;
-   const identity=definition?.id||src||props.block,digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity)),id='doc-'+Array.from(new Uint8Array(digest)).slice(0,8).map(byte=>byte.toString(16).padStart(2,'0')).join('');
-   const options={id,title:src||language,sourceUrl:src?fileResource(src,{repository:document.body.dataset.repositoryName,commit:document.body.dataset.commit}).url:undefined};
+   const identity=definition?.id||src||props.block,digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity)),referencePrefix='doc-'+Array.from(new Uint8Array(digest)).slice(0,8).map(byte=>byte.toString(16).padStart(2,'0')).join(''),id=referencePrefix+'-'+context.sessionId;
+   const options={id,referencePrefix,title:src||language,sourceUrl:src?resolveResource(src).url:undefined};
    if(prepared){
     const payload=JSON.parse(prepared.dataset.documentData||'null');
     if(payload){const {documentMarkup}=await import('../build/document-markup.mjs');return new DOMParser().parseFromString(documentMarkup(payload.pages.map(page=>page.html).join(''),options),'text/html').querySelector('[data-file-document]');}
@@ -32,6 +36,7 @@ export function initCodeViewers(){registerFpType('code',(props,context)=>{
    catch(error){const view=document.createElement('div'),message=document.createElement('p');view.className='file-document';view.dataset.fileDocument='';message.className='document-error';message.textContent=error.message;view.append(message);return view;}
   };
   try{
+   if(!resourceContext){await Promise.allSettled(parentsReady);if(!alive())return;resourceContext=readingContext(context.parentPanel);setReadingContext(viewer.panel,resourceContext);}
    if(props.block){
     let element=await articleCodeBlock(props.block);if(!element&&parentsReady.length){await Promise.allSettled(parentsReady);element=await articleCodeBlock(props.block);}if(!alive())return;
     if(!element&&retainedDefinition?.id!==props.block)throw Error('代码块不存在：'+props.block);
@@ -48,7 +53,7 @@ export function initCodeViewers(){registerFpType('code',(props,context)=>{
      if(alive())viewer.update({title:languageLabel(definition.language),pre,origin:sourceOrigin,ranges,documentView:view});return;
     }
    }
-   const resource=fileResource(file,{repository:document.body.dataset.repositoryName,commit:document.body.dataset.commit}),title=fileResourceTitle(resource),href=resource.href;
+   const resource=resolveResource(file),title=fileResourceTitle(resource),href=resource.href;
    const update=options=>viewer.update({title,sourceFile:file,origin:sourceOrigin,ranges,...options});
    const requireText=()=>{if(hasCodeAnnotations(annotations)||ranges.length)throw Error('行范围与代码标注只能用于文本文件');};
    const show=async(pre,codeTitle=title)=>{
@@ -62,7 +67,7 @@ export function initCodeViewers(){registerFpType('code',(props,context)=>{
     else{requireText();if(cached.kind==='image')update({title:resource.title,image:cached.blob});else update({message:cached.message,href});}
     return;
    }
-   const local=isWebFile(file)?null:await bundledSource(file).catch(()=>null);if(!alive())return;if(local&&(!definition||definition.language===resource.language)){await show(local);return;}
+   const local=isWebFile(file)?null:await bundledSource(file,resourceContext).catch(()=>null);if(!alive())return;if(local&&(!definition||definition.language===resource.language)){await show(local);return;}
    const content=await readFile(resource.url);if(!alive())return;
    if(content.kind==='image'){requireText();update({title:resource.title,image:content.blob});return;}
    if(content.kind!=='text'){requireText();update({message:content.message,href});return;}

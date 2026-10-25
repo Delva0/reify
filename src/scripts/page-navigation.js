@@ -11,9 +11,11 @@ import {initGitHubFiles,disposeGitHubFiles} from './github-files.js';
 import {initTreeWidth,disposeTreeWidth} from './tree-width.js';
 import {disposeSidebar} from './sidebars.js';
 import {notice} from '../lib/dom.js';
+import {createPageReadingStore,pageReadingScope,pageReadingTarget} from './page-reading.js';
 
-let initialized=false,currentHref,request,revision=0,navigating=false,scrollFrame;
-const scrolls=new Map(),loadedModules=new Set(),metadata=['data-repository','data-repository-name','data-version','data-commit','data-mdx-file','data-source-url','data-article-page'];
+let initialized=false,currentHref,request,revision=0,navigating=false,scrollFrame,restoreFrame,restoringScroll=false,pageReadings;
+const readingStore=()=>pageReadings??=createPageReadingStore();
+const loadedModules=new Set(),metadata=['data-repository','data-repository-name','data-version','data-commit','data-mdx-file','data-source-url','data-article-page'];
 export function pageLinkTarget(link,href){
  if(!link||link.hasAttribute('download')||link.target&&link.target!=='_self'||link.closest('[data-file-document]')||link.closest('[data-floating-panel]')&&!link.closest('.repo-header'))return null;
  const raw=link.getAttribute('href');if(!raw||raw.startsWith('#'))return null;
@@ -24,8 +26,14 @@ export function pageLinkTarget(link,href){
 }
 const position=()=>({x:scrollX,y:scrollY});
 function rememberScroll(write=true){
- if(!currentHref)return;const scroll=position();scrolls.set(currentHref,scroll);
- if(write)history.replaceState({...history.state,reifyNavigation:{scroll}},'',location.href);
+ if(!currentHref||restoringScroll)return;const scroll=position(),scope=pageReadingScope(currentHref,document.body.dataset);readingStore().remember(scope,scroll);
+ if(write)history.replaceState({...history.state,reifyNavigation:{scope,scroll}},'',location.href);
+}
+const savedScroll=(url,reason,state)=>{const scope=pageReadingScope(url.href,document.body.dataset);return pageReadingTarget({url,scope,reason,state,stored:readingStore().read(scope)});};
+const scheduleScroll=()=>{if(navigating||restoringScroll||scrollFrame!==undefined)return;scrollFrame=requestAnimationFrame(()=>{scrollFrame=undefined;if(!navigating)rememberScroll();});};
+function restoreScrollFrame(url,saved){
+ cancelAnimationFrame(restoreFrame);restoringScroll=true;
+ restoreFrame=requestAnimationFrame(()=>{restoreFrame=undefined;applyScroll(url,saved);currentHref=location.href;restoringScroll=false;rememberScroll();});
 }
 function payload(source,id){
  const incoming=source.getElementById(id),old=document.getElementById(id);
@@ -60,7 +68,7 @@ export async function navigatePage(href,{replace=false,reason='link',state}={}){
  if(canonicalArticlePath(target.pathname)===canonicalArticlePath(new URL(from).pathname))return false;
  const ticket=++revision;request?.abort();request=new AbortController();const signal=request.signal;
  let beforeStarted=false,committed=false,afterSent=false;
- rememberScroll(reason!=='popstate');navigating=true;
+ rememberScroll(reason!=='popstate');cancelAnimationFrame(restoreFrame);restoreFrame=undefined;restoringScroll=false;readingStore().flush();navigating=true;
  try{
   const html=await articlePageCache.read(target.href,{signal});if(signal.aborted||ticket!==revision)return false;
   const source=new DOMParser().parseFromString(html,'text/html'),main=source.querySelector('main.reading-viewport');
@@ -70,7 +78,7 @@ export async function navigatePage(href,{replace=false,reason='link',state}={}){
   if(signal.aborted||ticket!==revision)return false;
   const current=document.querySelector('main.reading-viewport');
   disposeNavigationNode(current);for(const view of current.querySelectorAll('[data-file-document]'))unmountDocumentView(view);
-  if(reason!=='popstate')history[replace?'replaceState':'pushState']({...history.state,reifyNavigation:{scroll:{x:0,y:0}}},'',target.href);
+  if(reason!=='popstate')history[replace?'replaceState':'pushState']({...history.state,reifyNavigation:{scope:pageReadingScope(target.href,source.body.dataset),scroll:{x:0,y:0}}},'',target.href);
   committed=true;
   for(const name of metadata){const value=source.body.getAttribute(name);if(value===null)document.body.removeAttribute(name);else document.body.setAttribute(name,value);}
   document.title=source.title;
@@ -80,7 +88,7 @@ export async function navigatePage(href,{replace=false,reason='link',state}={}){
   for(const id of ['article-pages','document-options','file-resources'])payload(source,id);
   resetArticlePages();refreshArticleResources();refreshNavigation();initGitHubFiles();initTreeWidth();hydrateReadingContent(current);initDocumentViews();
   const assets=loadPageAssets(source,target.href).catch(error=>{if(ticket===revision)notice(error.message);});
-  applyScroll(target,reason==='popstate'?(state?.reifyNavigation?.scroll||scrolls.get(target.href)):null);
+  applyScroll(target,savedScroll(target,reason,reason==='popstate'?state:null));
   afterSent=true;document.dispatchEvent(new CustomEvent('reify:after-navigate',{detail:{from,to:target.href,reason}}));
   currentHref=location.href;rememberScroll();warmArticleResources();await assets;if(ticket===revision)document.dispatchEvent(new Event('astro:page-load'));return true;
  }catch(error){if(!signal.aborted&&ticket===revision){notice(error.message||'页面暂时无法读取');if(committed||reason==='popstate')location.assign(target.href);else if(beforeStarted&&!afterSent)document.dispatchEvent(new CustomEvent('reify:after-navigate',{detail:{from,to:from,reason,cancelled:true,error}}));}return false;}
@@ -90,7 +98,7 @@ export function initPageNavigation(){
  if(initialized)return;initialized=true;currentHref=location.href;
  articlePageCache.remember(currentHref,'<!doctype html>'+document.documentElement.outerHTML);
  for(const script of document.querySelectorAll('script[type=module][src]'))loadedModules.add(script.src);
- history.scrollRestoration='manual';rememberScroll();
+ history.scrollRestoration='manual';const initial=new URL(location.href),reason=globalThis.performance?.getEntriesByType?.('navigation')[0]?.type||'navigate';restoreScrollFrame(initial,savedScroll(initial,reason,history.state));
  document.addEventListener('click',event=>{
   if(event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
   const target=pageLinkTarget(event.target.closest?.('a[href]'),location.href);if(!target)return;
@@ -98,7 +106,8 @@ export function initPageNavigation(){
  });
  document.addEventListener('reify:navigate',event=>navigatePage(event.detail.href,{replace:event.detail.replace}));
  document.addEventListener('fpchange',()=>{if(!navigating)currentHref=location.href;});
- addEventListener('hashchange',()=>{if(!navigating)currentHref=location.href;});
- addEventListener('scroll',()=>{if(navigating||scrollFrame!==undefined)return;scrollFrame=requestAnimationFrame(()=>{scrollFrame=undefined;if(!navigating)rememberScroll();});},{passive:true});
- addEventListener('popstate',event=>{const target=new URL(location.href);if(canonicalArticlePath(target.pathname)===canonicalArticlePath(new URL(currentHref).pathname)){currentHref=location.href;return;}navigatePage(target.href,{reason:'popstate',state:event.state});});
+ addEventListener('hashchange',()=>{if(!navigating){currentHref=location.href;scheduleScroll();}});
+ addEventListener('scroll',scheduleScroll,{passive:true});
+ const flushScroll=()=>{if(!navigating)rememberScroll();readingStore().flush();};addEventListener('pagehide',flushScroll);addEventListener('beforeunload',flushScroll);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushScroll();});
+ addEventListener('popstate',event=>{const target=new URL(location.href);if(canonicalArticlePath(target.pathname)===canonicalArticlePath(new URL(currentHref).pathname)){currentHref=location.href;restoreScrollFrame(target,savedScroll(target,event.state?.reifyNavigation?'popstate':'link',event.state));return;}navigatePage(target.href,{reason:'popstate',state:event.state});});
 }

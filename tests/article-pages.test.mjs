@@ -30,6 +30,8 @@ const hidden='<template id="hidden-kernel" data-code-definition="'+JSON.stringif
 const hiddenPages=paginateArticle(hidden+'<h1 id="one">起点</h1><h1 id="two">调用</h1><p><a href="?fp=code&block=hidden-kernel">代码</a></p>','blocks');
 assert.deepEqual(hiddenPages.blocks['hidden-kernel'],definition);assert.equal(hiddenPages.manifest.anchors['hidden-kernel'],'blocks.html');
 assert(hiddenPages.pages[0].html.includes('data-code-definition'));assert(!hiddenPages.pages[1].html.includes('data-code-definition'),'other H1 pages load definitions on demand rather than duplicating them');
+const referenced=paginateArticle('<h1 id="one">One</h1><h1 id="two">Two</h1><div id="unique-code" class="code-block" data-code-reference="stable-code"><pre>x()</pre></div>','refs');
+assert.equal(referenced.manifest.anchors['unique-code'],'refs-page-2.html');assert.equal(referenced.manifest.anchors['stable-code'],'refs-page-2.html');
 assert.throws(()=>paginateArticle(hidden+hidden+'<h1>重复</h1>','duplicate'),/重复的 CodeBlock/);
 const ast={children:[{type:'mdxJsxFlowElement',name:'h1',attributes:[{name:'id',value:'custom'}],children:[{type:'text',value:'显式标题'}]},{type:'element',tagName:'h3',children:[{type:'text',value:'子章节'}]}]},file={data:{}};
 exactHeadings()(ast,file);assert.deepEqual(file.data.astro.frontmatter.exactHeadings.map(h=>[h.slug,h.depth]),[['custom',1],['mdx-2',3]],'explicit MDX ids and skipped heading levels are preserved');

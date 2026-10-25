@@ -1,4 +1,6 @@
+import {readingContext} from './reading-context.js';
 const elementOf=node=>node?.nodeType===1?node:node?.parentElement;
+const articleOf=element=>element?.closest?.('article.document')||document.querySelector('main .document,.document');
 
 export function domPath(node){
  let element=elementOf(node);const path=[];
@@ -14,16 +16,18 @@ function boundary(node,offset){const parent=node.nodeType===3?node.parentElement
 function sourceLocation(element){const node=element?.closest('[data-mdx-line]');return node?{line:Number(node.dataset.mdxLine),column:Number(node.dataset.mdxColumn),endLine:Number(node.dataset.mdxEndLine),endColumn:Number(node.dataset.mdxEndColumn)}:null;}
 
 export function headingPath(element,y=innerHeight/2){
- const article=document.querySelector('.document'),headings=[...article.querySelectorAll('h1,h2,h3,h4,h5,h6')],path=[];
+ const context=readingContext(element),local=element?.closest?.('article.document'),article=articleOf(element);
+ if(!local&&new URL(context.url).pathname!==location.pathname)return [{id:new URL(context.url).hash.slice(1),text:context.title,level:1}];
+ const headings=[...article.querySelectorAll('h1,h2,h3,h4,h5,h6')],path=[];
  for(const heading of headings){const before=article.contains(element)?heading===element||heading.contains(element)||Boolean(heading.compareDocumentPosition(element)&Node.DOCUMENT_POSITION_FOLLOWING):heading.getBoundingClientRect().top<=y;
   if(!before)break;const level=Number(heading.tagName[1]);while(path.length&&path.at(-1).level>=level)path.pop();path.push({id:heading.id,text:heading.textContent,level});
  }return path.length?path:[{id:headings[0]?.id,text:headings[0]?.textContent||document.title,level:1}];
 }
 
 export function articleContext(element,y){
- const article=document.querySelector('.document'),headings=headingPath(element,y),url=new URL(location.href);url.hash=headings.at(-1)?.id||'';
- const zone=element?.closest('[data-code-viewer]')?'源码弹窗':element?.closest('.repo-tree')?'目录':element?.closest('header')?'顶部':article.contains(element)?'正文':'页面';
- return {title:article.querySelector('h1')?.textContent||document.title,repository:document.body.dataset.repositoryName,version:document.body.dataset.version,commit:document.body.dataset.commit,file:document.body.dataset.mdxFile,headings:headings.map(h=>h.text),url:url.href,zone,source:sourceLocation(element)};
+ const context=readingContext(element),article=articleOf(element),headings=headingPath(element,y),url=new URL(element?.closest('[data-page-viewer=article]')?context.url:location.href),id=headings.at(-1)?.id||'';url.hash=context.scopeId&&id.startsWith(context.scopeId+'-')?id.slice(context.scopeId.length+1):id;
+ const zone=element?.closest('[data-page-viewer=article]')?'文章浮窗':element?.closest('[data-code-viewer]')?'源码弹窗':element?.closest('.repo-tree')?'目录':element?.closest('header')?'顶部':article.contains(element)?'正文':'页面';
+ return {title:context.title||article.querySelector('h1')?.textContent||document.title,repository:context.repositoryName,version:context.version,commit:context.commit,file:context.mdxFile,headings:headings.map(h=>h.text),url:url.href,zone,source:sourceLocation(element)};
 }
 
 export function textContext(range){

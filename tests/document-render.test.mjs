@@ -63,6 +63,22 @@ assert(mdx.includes('block=mdx-fn'));
 const mdxCode=findAll(parseFragment(payload(mdx).pages[0].html),'div').find(node=>attr(node,'id')==='mdx-fn');
 assert.equal(attr(mdxCode,'data-mdx-line'),'5');
 
+const stableSource='# First\n\n[代码](?fp=code&block=hidden)\n\n<CodeBlock id="shown" code="x()" />\n\n# Second\n\n<CodeBlock id="hidden" code="y()" render={false} />';
+const stableA=payload(await renderDocument(stableSource,{id:'session-a',referencePrefix:'source-doc',format:'mdx'}));
+const stableB=payload(await renderDocument(stableSource,{id:'session-b',referencePrefix:'source-doc',format:'mdx'}));
+for(const [data,scope]of [[stableA,'session-a'],[stableB,'session-b']]){
+ const shown=findAll(parseFragment(data.pages[0].html),'div').find(node=>attr(node,'data-code-reference')==='source-doc-shown');
+ const hidden=findAll(parseFragment(data.pages[1].html),'template').find(node=>attr(node,'data-code-reference')==='source-doc-hidden');
+ assert.equal(attr(shown,'id'),scope+'-shown');assert.equal(attr(hidden,'id'),scope+'-hidden');
+ assert.equal(JSON.parse(attr(hidden,'data-code-definition')).id,'source-doc-hidden');
+ assert(data.pages[0].html.includes('block=source-doc-hidden'));
+ assert.equal(data.anchors['source-doc-hidden'],data.pages[1].href,'canonical code references retain their H1 owner');
+}
+const rescoped=prepareDocument(stableA.pages.map(page=>page.html).join(''),{id:'session-c',referencePrefix:'source-doc'});
+assert(rescoped.pages[0].html.includes('data-code-reference="source-doc-shown"'),'prepared document reuse does not accumulate a previous DOM scope in canonical references');
+assert(rescoped.pages[0].html.includes('block=source-doc-hidden'));
+assert.equal(rescoped.anchors['source-doc-hidden'],rescoped.pages[1].href);
+
 for(const [unsafe,message]of [
  ['export const x = globalThis\n\n# Code',/模块代码/],
  ['# Code\n\n{globalThis.fetch("https://example.com")}',/动态表达式/],

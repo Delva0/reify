@@ -3,8 +3,9 @@ import {floatingLayer,registerFloatingPanel,unregisterFloatingPanel,raiseFloatin
 import {initSidebar} from './sidebars.js';
 import {canonicalArticlePath} from '../lib/article-pages.js';
 import {toggleTreeBranch,registerTreeRoot} from './tree-branches.js';
+import {bindReadingOutline} from './reading-outline.js';
 const dropdowns=new WeakMap(),selects=new WeakSet(),themes=new WeakSet(),trees=new WeakMap();
-let initialized=false,readingBound=false,readingHeader;
+let initialized=false,readingOutline;
 
 function initDropdown(picker){
  if(dropdowns.has(picker))return dropdowns.get(picker);
@@ -57,10 +58,10 @@ function initTree(){
  tree.addEventListener('click',event=>{const button=closest(event,'button.tree-branch,button.tree-repository');if(button&&!button.hasAttribute('data-tree-root-toggle'))toggleTreeBranch(button,event);if(closest(event,'a'))binding.sidebar.closeOverlay();});
 }
 function initReadingHeader(){
- const header=$('header.repo-header');if(!header)return;
- const headings=$$('main .document :is(h1,h2,h3,h4,h5,h6)'),links=$$('.repo-tree a[data-heading]');
- readingHeader=()=>{header.classList.toggle('scrolled',scrollY>40);let current=headings[0];for(const heading of headings){if(heading.getBoundingClientRect().top>header.offsetHeight+32)break;current=heading;}for(const link of links){const href=link.getAttribute('href')||'',here=href.startsWith('#')||canonicalArticlePath(new URL(href,location.href).pathname)===canonicalArticlePath(location.pathname);if(current&&link.dataset.heading===current.id&&here)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');}};
- if(!readingBound){readingBound=true;let queued=false;const update=()=>{queued=false;readingHeader?.();};addEventListener('scroll',()=>{if(!queued){queued=true;requestAnimationFrame(update);}},{passive:true});addEventListener('resize',update);}readingHeader();
+ readingOutline?.dispose();const header=$('header.repo-header');if(!header)return;
+ const links=$$('.repo-tree a[data-heading]');for(const link of links)link.removeAttribute('aria-current');
+ const here=links.filter(link=>{const href=link.getAttribute('href')||'';if(href.startsWith('#'))return true;const url=new URL(href,location.href);return url.origin===location.origin&&canonicalArticlePath(url.pathname)===canonicalArticlePath(location.pathname);});
+ readingOutline=bindReadingOutline({article:$('main .document'),viewport:window,links:here,outline:$('.repo-tree .repo-tree-content'),offset:()=>header.offsetHeight+32,onScroll:top=>header.classList.toggle('scrolled',top>40)});
 }
 export function refreshNavigation(){initTheme();enhanceSelects();for(const picker of $$('.version-picker:not(.field-picker)'))initDropdown(picker);initTree();initReadingHeader();}
 export function initNavigation(){if(initialized)return;initialized=true;refreshNavigation();document.addEventListener('click',event=>{const direction=closest(event,'[data-history]')?.dataset.history;if(direction==='back')history.back();else if(direction==='forward')history.forward();});}

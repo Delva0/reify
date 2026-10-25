@@ -15,10 +15,12 @@ import {hydrateReadingContent} from './reading-content.js';
 import {initDocumentViews} from './document-view.js';
 import {initPageNavigation} from './page-navigation.js';
 import {initReaderAnnotation,toggleReaderAnnotation} from './reader-annotation.js';
+import {initLinkPanels} from './link-panels.js';
 
 initSelection();
 document.addEventListener('reify:before-navigate',releaseSelection);
 initArticlePages();
+initLinkPanels();
 initPageNavigation();
 initNavigation();
 initFloatingPanels();

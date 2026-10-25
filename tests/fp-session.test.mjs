@@ -24,7 +24,7 @@ test('initial session restoration preserves an independent non-modal root above 
   install('localStorage',{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)});
   install('document',{body:{dataset:{repositoryName:'owner/repo',commit:'abc'}},querySelector:()=>null,querySelectorAll:()=>[],addEventListener(){},dispatchEvent(){}});
   install('addEventListener',()=>{});
-  install('history',{state:null,replaceState(_state,_title,url){globalThis.location=new URL(url);}});
+  install('history',{state:null,replaceState(state,_title,url){this.state=state;globalThis.location=new URL(url);}});
   const key=fpSessionKey('owner/repo','abc','/stack.html');
   storage.set(key,JSON.stringify({version:2,entries:[{id:'modal-a',state:a,modal:true,parentId:null,snapshot:{}},{id:'floating-c',state:c,modal:false,parentId:null,snapshot:{}}]}));
   const module=await import('../src/scripts/fp-navigation.js?session-independent-stack');
@@ -48,7 +48,7 @@ test('refresh restores geometry, non-modal state and parent references while URL
   install('localStorage',{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)});
   install('document',{body:{dataset:{repositoryName:'owner/repo',commit:'abc'}},querySelector:()=>null,addEventListener:(name,fn)=>listeners.set(name,fn),dispatchEvent:event=>{if(event.type==='fpready')ready.push(event.detail.panel);}});
   install('addEventListener',(name,fn)=>listeners.set(name,fn));
-  install('history',{state:null,pushState(_state,_title,url){globalThis.location=new URL(url);},replaceState(_state,_title,url){globalThis.location=new URL(url);}});
+  install('history',{state:null,pushState(state,_title,url){this.state=state;globalThis.location=new URL(url);},replaceState(state,_title,url){this.state=state;globalThis.location=new URL(url);}});
   const factory=(props,context)=>{
    const view={props,context,panel:{dataset:{},style:{}},modal:context.restore?.modal??true,box:context.restore?.box||{left:0,top:0,width:500,height:300},ready:Promise.resolve(),snapshot(){return {modal:this.modal,box:this.box};},restore(snapshot){if(snapshot.modal!==undefined)this.modal=snapshot.modal;},detach(){this.modal=false;context.onDetach();},close(){context.onClose();}};
    opened.push(view);return view;
@@ -64,7 +64,7 @@ test('refresh restores geometry, non-modal state and parent references while URL
   assert.equal(restoredChild.modal,false);assert.deepEqual(restoredChild.box,child.box);assert.equal(restoredChild.context.parentPanel,restoredParent.panel);
   assert.equal(restoredChild.panel.dataset.fpSessionId,child.panel.dataset.fpSessionId);assert.deepEqual(refreshed.floatingPanelState(),[a]);
   await Promise.resolve();assert(ready.includes(restoredParent.panel));assert(ready.includes(restoredChild.panel),'restored content announces readiness for dependent note/editor restoration');
-  refreshed.showFloatingPanels([a,b]);assert.equal(opened.length,4,'URL reopening reuses the non-modal instance');assert.equal(restoredChild.modal,true);
+  refreshed.showFloatingPanels([a,b]);assert.equal(opened.length,5,'URL reconciliation creates a new modal occurrence and retains the non-modal instance');assert.equal(restoredChild.modal,false);opened.at(-1).close();
   assert.equal(restoredParent.panel.style.zIndex,undefined,'navigation never owns the layer implementation');
   restoredChild.close();listeners.get('beforeunload')();assert.equal(validateFpSession(JSON.parse(storage.get(key))).entries.length,1,'closed viewers are not restored');
   restoredParent.detach();restoredParent.box={left:35,top:110,width:520,height:280};listeners.get('pagehide')();assert.equal(location.search,'');
