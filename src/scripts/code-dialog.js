@@ -126,7 +126,7 @@ export function createCodeDialog({onClose,onDetach,onAttach}){
    pendingDirection=0;if(navigationDirty)measureRanges();refreshRangeTip();navigationFrame=undefined;
   });
  };
- const initializeNavigation=()=>{if(navigationRanges.length&&!initializedModes.has(mode()))pendingJump=lastJump?.index||0;scheduleNavigation(true);};
+ const initializeNavigation=event=>{if(event?.detail?.synchronized){initializedModes.add(mode());lastJump=undefined;pendingJump=undefined;}else if(navigationRanges.length&&!initializedModes.has(mode()))pendingJump=lastJump?.index||0;scheduleNavigation(true);};
  const rangeObserver=new ResizeObserver(()=>scheduleNavigation(true)),documentObserver=new MutationObserver(()=>scheduleNavigation(true));
  dialog.addEventListener('documentmodechange',initializeNavigation);
  dialog.addEventListener('documentpagechange',event=>{if(event.target.parentElement===documentHost){lastJump=undefined;scheduleNavigation(true);}});

@@ -4,6 +4,7 @@ import {codeBlockDefinition} from '../lib/code-block.js';
 import {readingContent} from '../lib/reading-content.js';
 import {readFile} from '../lib/github-files.js';
 import {bindTreeWidth} from './tree-width.js';
+import {readingPosition,restoreReadingPosition,sourceLineEntries,rangeBackground} from '../lib/reading-position.js';
 const views=new WeakMap(),owners=new WeakSet();
 async function hydrateDocumentCode(block){
  if(!block.hasAttribute('data-document-code'))return;block.removeAttribute('data-document-code');
@@ -18,10 +19,13 @@ async function hydrateDocumentCode(block){
 export function setDocumentMode(root,rendered){
  const view=root.querySelector(':scope > [data-source-document],:scope > [data-file-document]'),pre=root.querySelector(':scope > pre'),head=root.querySelector(':scope > .code-header,:scope > .dialog-head'),button=head?.querySelector('[data-code-document]');
  if(!view||!button)return;
+ const documentView=view.matches('[data-file-document]')?view:view.querySelector('[data-file-document]'),controller=views.get(documentView),previous=root.dataset.documentMode;
+ const position=previous&&previous!==(rendered?'rendered':'source')?(previous==='rendered'?controller?.position():readingPosition(pre,sourceLineEntries(pre))):null;
  root.dataset.documentMode=rendered?'rendered':'source';view.hidden=!rendered;if(pre)pre.hidden=rendered;
  button.hidden=false;button.setAttribute('aria-pressed',String(!rendered));button.setAttribute('aria-label',rendered?'源码':'文档');button.dataset.tip=rendered?'源码':'文档';
  const wrap=head.querySelector('[data-code-wrap]'),ranges=head.querySelector('[data-code-ranges]');if(wrap)wrap.hidden=rendered;if(ranges)ranges.hidden=root.dataset.hasRanges!=='true';
- root.dispatchEvent(new CustomEvent('documentmodechange',{detail:{rendered}}));
+ if(position){if(rendered)controller?.restore(position);else restoreReadingPosition(pre,sourceLineEntries(pre),position);}
+ root.dispatchEvent(new CustomEvent('documentmodechange',{detail:{rendered,synchronized:Boolean(position)}}));
 }
 export function mountDocumentView(view,owner=view.closest('.code-block,[data-code-viewer]'),ranges){
  if(!view||views.has(view))return;
@@ -41,9 +45,8 @@ export function mountDocumentView(view,owner=view.closest('.code-block,[data-cod
   sources=[...article.querySelectorAll('[data-mdx-line]')].filter(node=>node.closest('[data-file-document]')===view).map(node=>({node,...source(node)}));
   pageSources.set(current,sources.map(({from,to})=>({from,to})));rangeTargets.clear();
  };
- const markRanges=()=>{
-  const marked=new Set();for(const item of sources){const range=ranges.find(range=>intersects(item,range));if(!range)continue;const node=item.node;let parent=node.parentElement,inside=false;while(parent&&parent!==article){if(marked.has(parent)){inside=true;break;}parent=parent.parentElement;}if(inside)continue;marked.add(node);node.dataset.documentRange=range.color||'gray';}
- };
+ let rangeFrame;
+ const markRanges=()=>{if(!ranges.length||rangeFrame!==undefined)return;rangeFrame=requestAnimationFrame(()=>{rangeFrame=undefined;const canvas=article?.querySelector(':scope > .document');if(canvas)canvas.style.setProperty('--document-range-background',rangeBackground(canvas,sources,ranges));});};
  const selectPage=index=>{
   if(!payload||index===current)return;
   scrollPositions.set(current,article.scrollTop);for(const nested of article.querySelectorAll('[data-file-document]'))unmountDocumentView(nested);
@@ -67,7 +70,7 @@ export function mountDocumentView(view,owner=view.closest('.code-block,[data-cod
   }
   const cached=rangeTargets.get(key);return navigate?cached.nearest:cached.match;
  };
- const hydrate=()=>{if(!article)return;hydrateReadingContent(article);indexSources();markRanges();for(const block of article.querySelectorAll('[data-document-code]'))hydrateDocumentCode(block);for(const nested of article.querySelectorAll('[data-file-document]'))mountDocumentView(nested);};
+ const hydrate=()=>{if(!article)return;hydrateReadingContent(article);indexSources();markRanges();rangeObserver?.disconnect();rangeObserver?.observe(article);const canvas=article.querySelector(':scope > .document');if(canvas)rangeObserver?.observe(canvas);for(const block of article.querySelectorAll('[data-document-code]'))hydrateDocumentCode(block);for(const nested of article.querySelectorAll('[data-file-document]'))mountDocumentView(nested);};
  const click=event=>{
   if(event.target.closest('[data-file-document]')!==view)return;
   const branch=event.target.closest('.document-outline .tree-branch');if(branch){const list=branch.closest('li').querySelector(':scope > .tree-sections');if(list){const open=branch.getAttribute('aria-expanded')==='true';branch.setAttribute('aria-expanded',String(!open));branch.querySelector('path').setAttribute('d',open?'M2 6h8M6 2v8':'M2 6h8');list.hidden=open;}return;}
@@ -79,8 +82,18 @@ export function mountDocumentView(view,owner=view.closest('.code-block,[data-cod
   for(const item of view.querySelectorAll('.document-outline a[data-heading]')){if(item.dataset.heading===id)item.setAttribute('aria-current','location');else item.removeAttribute('aria-current');}
  };
  const outline=view.querySelector(':scope > .document-outline'),releaseWidth=bindTreeWidth(outline,outline?.querySelector(':scope > .tree-resize-handle'),{styleTarget:view,maximum:()=>Math.min(480,view.clientWidth-256),observe:view});
- views.set(view,{target,release(){release();releaseWidth();view.removeEventListener('click',click);}});
+ const rangeObserver=ranges.length?new ResizeObserver(markRanges):null;
+ if(article)rangeObserver?.observe(article);
+ const restore=position=>{
+  const range={from:Math.floor(position.line),to:Math.ceil(position.line)};
+  let page=rangePage(range,'position:'+range.from);
+  if(payload&&page<0)page=payload.pages.findLastIndex((_item,index)=>pageSources.get(index)?.some(item=>item.from<=position.line));
+  if(page>=0)selectPage(page);
+  restoreReadingPosition(article,sources,position);
+ };
+ views.set(view,{target,position:()=>readingPosition(article,sources),restore,release(){release();releaseWidth();rangeObserver?.disconnect();cancelAnimationFrame(rangeFrame);view.removeEventListener('click',click);view.removeEventListener('load',markRanges,true);}});
  view.addEventListener('click',click);
+ view.addEventListener('load',markRanges,true);
  hydrate();
  view.querySelector('.document-outline a[data-heading]')?.setAttribute('aria-current','page');
  if(owner&&!owners.has(owner)){owners.add(owner);owner.querySelector(':scope > .code-header [data-code-document],:scope > .dialog-head [data-code-document]')?.addEventListener('click',()=>setDocumentMode(owner,owner.dataset.documentMode!=='rendered'));}

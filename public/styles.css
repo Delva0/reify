@@ -51,6 +51,8 @@ input#request-batches{width:132px}
 .symmetric-part{position:absolute;inset:0;width:100%;height:100%;min-height:0;padding:0;border:0;background:transparent;color:var(--muted)}
 .symmetric-first{clip-path:inset(0 0 50% 0)}
 .symmetric-second{clip-path:inset(50% 0 0 0)}
+.symmetric-button[data-orientation=horizontal]>.symmetric-first{clip-path:inset(0 50% 0 0)}
+.symmetric-button[data-orientation=horizontal]>.symmetric-second{clip-path:inset(0 0 0 50%)}
 .symmetric-icon{position:absolute;top:50%;left:50%;width:16px;height:16px;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;pointer-events:none;color:var(--muted)}
 .symmetric-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1}
 .symmetric-badge{position:absolute;right:-4px;top:-4px;background:transparent;color:inherit;opacity:.4;font:6px/7px var(--mono);font-variant-numeric:tabular-nums;pointer-events:none;user-select:none}
@@ -155,10 +157,10 @@ td code{font-size:12px}
 .tree-root{display:inline-block;margin-bottom:8px;padding:2px 4px;text-decoration:none;color:var(--ink)}
 .tree-row{position:relative;display:flex;align-items:flex-start;gap:var(--tree-gap);min-width:0;min-height:24px}
 .tree-row:has(>.tree-branch[aria-expanded=true])::after{content:'';position:absolute;left:7px;top:19px;bottom:0;border-left:1px solid var(--tree-line);pointer-events:none}
-.tree-row>a{display:block;flex:1;min-width:0;padding:2px 4px;line-height:20px;text-decoration:none;overflow-wrap:anywhere}
+.tree-row>a{display:block;flex:1;min-width:0;padding:2px 4px;line-height:20px;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tree-row>.tree-heading{font-family:var(--sans);font-size:12px}
 .tree-repository{position:relative;display:flex;align-items:flex-start;gap:var(--tree-gap);width:100%;min-height:24px;padding:0;border:0;background:transparent;color:var(--muted);text-align:left;font:11px/20px var(--mono)}
-.tree-repository-name{flex:1;min-width:0;padding:2px 4px;overflow-wrap:anywhere}
+.tree-repository-name{flex:1;min-width:0;padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tree-repository>.tree-branch{margin-top:5px;background:transparent;color:inherit;pointer-events:none}
 .tree-repository[aria-expanded=true]::before{content:'';position:absolute;left:7px;top:19px;bottom:0;border-left:1px solid var(--tree-line);pointer-events:none}
 .tree-repository[aria-expanded=true]{background:transparent;color:var(--muted)}
@@ -246,9 +248,8 @@ dialog[data-modal=false]>[data-source-code],dialog[data-modal=false]>[data-sourc
 .document-outline .tree-heading{font-size:12px}
 .document-content{width:100%;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
 .document img{max-width:100%;height:auto}
-.document [data-document-range]{background:var(--source-mark)}
-.document [data-document-range=blue]{background:color-mix(in srgb,var(--math-primary) 12%,transparent)}
-.document [data-document-range=amber]{background:color-mix(in srgb,var(--math-secondary) 12%,transparent)}
+.document-content>.document{position:relative;isolation:isolate}
+.document-content>.document::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background-image:var(--document-range-background,none);background-repeat:no-repeat}
 .document-error{grid-column:1/-1;margin:0;padding:24px;font-size:13px}
 [data-source-document]{min-height:0;overflow:hidden}
 [data-source-document]>.file-document{max-height:calc(var(--panel-max-height) - var(--dialog-bar-height) - 2px)}

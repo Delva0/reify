@@ -1,8 +1,8 @@
 ---
 import Icon from './Icon.astro';
-const {label,tip=label,badge='',first={},second={},...attrs}=Astro.props;
+const {label,tip=label,badge='',orientation='vertical',first={},second={},...attrs}=Astro.props;
 ---
-<div class="symmetric-button" role="group" aria-label={label} data-tip={tip} {...attrs}>
+<div class="symmetric-button" role="group" aria-label={label} data-tip={tip} data-orientation={orientation} {...attrs}>
  <button type="button" class="symmetric-part symmetric-first" {...first}/>
  <button type="button" class="symmetric-part symmetric-second" {...second}/>
  <span class="symmetric-icon"><slot><Icon name="symmetric"/></slot><span class="symmetric-badge" data-symmetric-badge aria-hidden="true" hidden={!badge}>{badge}</span></span>

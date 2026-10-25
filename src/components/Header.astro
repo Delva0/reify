@@ -2,10 +2,11 @@
 import Icon from './Icon.astro';
 import ReaderAnnotation from './ReaderAnnotation.astro';
 import Link from './Link.astro';
+import SymmetricButton from './SymmetricButton.astro';
 const {repository,version,site}=Astro.props;
 ---
 <header class="repo-header" data-floating-panel data-floating-layer="title" data-floating-persistent>
-  <a class="icon-button back-button" href={site.home} aria-label="返回目录" data-tip="返回"><Icon name="back"/></a>
+  <SymmetricButton orientation="horizontal" label="浏览历史" tip="返回/前进" first={{'data-history':'back','aria-label':'返回'}} second={{'data-history':'forward','aria-label':'前进'}}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 10H2m3-3-3 3 3 3m7-3h6m-3-3 3 3-3 3"/></svg></SymmetricButton>
   <button class="icon-button tree-toggle" aria-label="展开目录" aria-expanded="false"><Icon name="tree"/></button>
   {repository?<Link href={'https://github.com/'+repository.name} target="_blank" rel="noreferrer">{repository.name}</Link>:<span>{site.title}</span>}
   {repository&&<div class="version-picker">

@@ -12,7 +12,7 @@ const payload={pages:definitions.map(({html,href})=>({html,href})),anchors:{'sec
 function sourceNode(line,owner,parent){
  const dataset={};
  for(const key of ['mdxLine','mdxEndLine'])Object.defineProperty(dataset,key,{get(){stats.lineReads++;return String(line);}});
- return {dataset,parentElement:parent,closest:selector=>selector==='[data-file-document]'?owner:null};
+ return {dataset,parentElement:parent,closest:selector=>selector==='[data-file-document]'?owner:null,getBoundingClientRect:()=>({top:line*10,bottom:line*10+10,height:10})};
 }
 const handle={setAttribute(){},addEventListener:(type,handler)=>handleListeners.set(type,handler),removeEventListener:type=>handleListeners.delete(type)},outline={querySelector:()=>handle,classList:{remove(){}}};
 const listeners=new Map(),view={
@@ -24,11 +24,13 @@ const listeners=new Map(),view={
  removeEventListener(type,handler){listeners.get(type)?.delete(handler);},
  dispatchEvent:event=>events.push(event.type),
 };
+const canvas={style:{setProperty(name,value){this[name]=value;}},getBoundingClientRect:()=>({top:0})},frames=new Map();let frame=0;
 const article={
  scrollTop:0,
  set innerHTML(html){this.select(definitions.find(page=>html.includes(page.html)));},
  select(page){this.nodes=page.lines.map(line=>sourceNode(line,view,this));this.nested=page.nested.map(line=>sourceNode(line,{},this));},
  querySelectorAll(selector){if(selector==='[data-mdx-line]'){stats.sourceQueries++;return [...this.nodes,...this.nested];}return [];},
+ querySelector:selector=>selector===':scope > .document'?canvas:null,
 };
 article.select(definitions[0]);
 const secondBlock={matches:selector=>selector==='.code-block,template[data-code-definition]'};
@@ -38,6 +40,7 @@ try{
  install('removeEventListener',(type,handler)=>{if(type==='resize')resizeHandlers.delete(handler);});
  install('ResizeObserver',class{constructor(callback){this.callback=callback;observers.push(this);}observe(target){this.target=target;}disconnect(){this.disconnected=true;}});
  install('CustomEvent',class{constructor(type){this.type=type;}});
+ install('requestAnimationFrame',fn=>{frames.set(++frame,fn);return frame;});install('cancelAnimationFrame',id=>frames.delete(id));
  install('DOMParser',class{parseFromString(html){
   stats.parsed++;const page=definitions.find(page=>page.html===html);
   return {
@@ -51,7 +54,8 @@ try{
  view.clientWidth=720;observers[0].callback();assert.equal(widthStyles.get('--tree-width'),'220px');
  assert.equal(stats.sourceQueries,1,'the visible page is indexed once during hydration');
  assert.equal(stats.parsed,0,'mounting does not parse every inactive H1 page');
- assert.equal(article.nodes[1].dataset.documentRange,'yellow','range decoration uses the same source index');
+ for(const fn of frames.values())fn();frames.clear();
+ assert(canvas.style['--document-range-background'].includes('100px,var(--source-mark) 100px,var(--source-mark) 110px'),'range decoration paints the shared source index as one background');
  const first=article.nodes[1],reads=stats.lineReads;
  for(let i=0;i<1000;i++){
   assert.equal(documentRangeTarget(view,{from:10,to:10}),first);

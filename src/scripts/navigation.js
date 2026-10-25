@@ -59,5 +59,5 @@ function initReadingHeader(){
  const update=()=>{queued=false;header.classList.toggle('scrolled',scrollY>40);let current=headings[0];for(const heading of headings){if(heading.getBoundingClientRect().top>header.offsetHeight+32)break;current=heading;}for(const link of links){const href=link.getAttribute('href')||'',here=href.startsWith('#')||canonicalArticlePath(new URL(href,location.href).pathname)===canonicalArticlePath(location.pathname);if(current&&link.dataset.heading===current.id&&here)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');}};
  addEventListener('scroll',()=>{if(!queued){queued=true;requestAnimationFrame(update);}},{passive:true});addEventListener('resize',update);update();
 }
-export function initNavigation(){if(initialized)return;initialized=true;initTheme();enhanceSelects();for(const picker of $$('.version-picker:not(.field-picker)'))initDropdown(picker);initTree();initReadingHeader();}
+export function initNavigation(){if(initialized)return;initialized=true;initTheme();enhanceSelects();for(const picker of $$('.version-picker:not(.field-picker)'))initDropdown(picker);initTree();initReadingHeader();document.addEventListener('click',event=>{const direction=closest(event,'[data-history]')?.dataset.history;if(direction==='back')history.back();else if(direction==='forward')history.forward();});}
 
