@@ -49,7 +49,7 @@ const listeners={},messages=[],calls=[],styles=[{sheet:{cssRules:[{}]}}],root={d
   install('document',{documentElement:root,baseURI:'https://source.test/news',head:{append(){}},createElement:()=>({setAttribute(){}}),querySelector:()=>null,querySelectorAll:()=>styles,getElementById:id=>id==='part'?{scrollIntoView(){located++;}}:null,addEventListener:(name,handler)=>listeners[name]=handler});
   install('addEventListener',(name,handler)=>listeners[name]=handler);install('requestAnimationFrame',()=>{});
   install('setTimeout',()=>1);install('clearTimeout',()=>{});install('MutationObserver',class{observe(){}disconnect(){}});
-  webDocumentBootstrap({token:'ours',theme:{dark:true,paper:'#161616',ink:'#dedede',scroll:'#555'},anchor:'part',scrollbars:''});
+  webDocumentBootstrap({token:'ours',theme:{dark:true,paper:'#161616',ink:'#dedede',scroll:'#555'},anchor:'part',scrollbars:'',externalLinks:['https://source.test/blocked']});
   assert.equal(calls[0][0],'enable');assert.equal(calls[0][1].darkSchemeBackgroundColor,'#161616');assert.equal(root.dataset.reifyTheme,'dark');assert.equal(located,1);
   assert(messages.some(message=>message.type==='reify:web-ready'),'readiness cannot depend on painting an invisible frame');
   listeners.message({source:{},data:{type:'reify:web-theme',token:'ours',theme:{dark:false}}});assert.equal(calls.length,1);
@@ -59,6 +59,7 @@ const listeners={},messages=[],calls=[],styles=[{sheet:{cssRules:[{}]}}],root={d
   const click=(href,extra={})=>{const event={button:0,target:{closest:()=>({href,hasAttribute:()=>false})},preventDefault(){this.prevented=true;},...extra};listeners.click(event);return event;};
   assert(click('https://source.test/next').prevented);assert.equal(messages.at(-1).href,'https://source.test/next');
   const before=messages.length;for(const extra of [{ctrlKey:true},{metaKey:true},{button:1}])assert(!click('https://source.test/next',extra).prevented);assert.equal(messages.length,before);
+  assert(!click('https://source.test/blocked#part').prevented,'a known unavailable target keeps its native new-tab action inside the frame');assert.equal(messages.length,before);
   assert(click('https://source.test/news#part').prevented);assert.equal(located,2);assert.equal(messages.length,before);
  }finally{for(const [name,descriptor]of originals)if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}
 });

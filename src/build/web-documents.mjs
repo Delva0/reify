@@ -6,9 +6,10 @@ import {fileURLToPath} from 'node:url';
 import {readSiteConfig} from '../site-config.mjs';
 import {readingLinkState} from '../lib/link-panels.js';
 import {parseFpUrl} from '../lib/fp-links.js';
-import {prepareWebDocument,webDocumentKey,webEmbeddingAllowed,webDocumentHasContent} from '../lib/web-document.js';
+import {prepareWebDocument,webDocumentKey,webEmbeddingAllowed,webDocumentHasContent,webDocumentLinks} from '../lib/web-document.js';
+import {webDocumentRestriction} from '../lib/web-navigation.js';
 
-const require=createRequire(import.meta.url),documents=new Map(),assets=new Map();
+const require=createRequire(import.meta.url),documents=new Map(),assets=new Map(),external=new Set(),checks=new Map();
 const engineRoot=()=>path.dirname(require.resolve('darkreader'));
 const cacheDirectory=()=>path.join(readSiteConfig().root,'.reify/web-pages');
 const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -22,14 +23,27 @@ async function snapshot(url){
  const id=digest('web-document-v1:'+url),file=path.join(cacheDirectory(),id+'.json');
  let data;try{const stat=await fs.stat(file);if(Date.now()-stat.mtimeMs<86400000)data=JSON.parse(await fs.readFile(file,'utf8'));}catch{}
  if(!data){
-  const response=await request(url);if(!response.headers.get('content-type')?.includes('text/html')||!webEmbeddingAllowed(response.headers))return null;
+  const response=await request(url);if(!response.ok)return null;
+  const restriction=webDocumentRestriction(response.headers);if(restriction){external.add(url);return null;}
+  if(!response.headers.get('content-type')?.includes('text/html')||!webEmbeddingAllowed(response.headers))return null;
   const html=await textResponse(response,4000000),styles=new Map();
   data=await prepareWebDocument(html,response.url,{loadStyle:source=>{if(!styles.has(source))styles.set(source,request(source).then(response=>textResponse(response,2000000)));return styles.get(source);}});
   await fs.mkdir(cacheDirectory(),{recursive:true});await fs.writeFile(file,JSON.stringify(data));
  }
- if(!webDocumentHasContent(data.html))return null;
+ if(!webDocumentHasContent(data.html)){external.add(url);return null;}
  const asset='/data/web-pages/'+id+'.json';assets.set(url,asset);return data;
 }
+async function checkExternalLink(url){
+ const file=path.join(cacheDirectory(),'checks',digest(url)+'.json');let result;
+ try{const stat=await fs.stat(file);if(Date.now()-stat.mtimeMs<86400000)result=JSON.parse(await fs.readFile(file,'utf8'));}catch{}
+ if(!result){
+  result={external:false};try{const response=await fetch(url,{method:'HEAD',redirect:'follow',signal:AbortSignal.timeout(8000)});if(response.ok)result.external=Boolean(webDocumentRestriction(response.headers));}catch{}
+  await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,JSON.stringify(result));
+ }
+ if(result.external)external.add(url);
+}
+function mergeManifest(target,value){Object.assign(target.pages,value.pages||value);for(const url of value.external||[])target.external.add(url);}
+const manifestIndex=value=>({version:1,pages:value.pages,external:[...value.external]});
 export async function prepareWebDocuments(hrefs,page){
  const base=new URL(page,'https://article.local'),targets=new Set();
  for(const href of hrefs){
@@ -39,14 +53,18 @@ export async function prepareWebDocuments(hrefs,page){
   }catch{}
  }
  await Promise.all([...targets].map(url=>{if(!documents.has(url))documents.set(url,snapshot(url).catch(()=>null));return documents.get(url);}));
- const manifest=Object.fromEntries([...targets].filter(url=>assets.has(url)).map(url=>[url,assets.get(url)])),directory=path.join(cacheDirectory(),'manifests');
+ const candidates=new Set();for(const url of targets){const resource=await documents.get(url);if(resource)for(const href of webDocumentLinks(resource.html,resource.url))if(!targets.has(href))candidates.add(href);}
+ const origins=new Map();for(const href of candidates){const origin=new URL(href).origin;if(!origins.has(origin))origins.set(origin,href);}
+ const linked=new Set([...new Set([...origins.values(),...candidates])].slice(0,32));
+ const pending=[...linked];await Promise.all(Array.from({length:Math.min(6,pending.length)},async()=>{while(pending.length){const url=pending.shift();if(!checks.has(url))checks.set(url,checkExternalLink(url));await checks.get(url);}}));
+ const manifest={pages:Object.fromEntries([...targets].filter(url=>assets.has(url)).map(url=>[url,assets.get(url)])),external:[...new Set([...targets,...linked])].filter(url=>external.has(url))},directory=path.join(cacheDirectory(),'manifests');
  await fs.mkdir(directory,{recursive:true});await fs.writeFile(path.join(directory,digest(page)+'.json'),JSON.stringify(manifest));
 }
 export async function copyWebDocuments(directory){
  const output=fileURLToPath(directory),target=path.join(output,'data/web-pages');await fs.mkdir(target,{recursive:true});
- const pages={};for(const name of await fs.readdir(output))if(name.endsWith('.html'))try{Object.assign(pages,JSON.parse(await fs.readFile(path.join(cacheDirectory(),'manifests',digest('/'+name)+'.json'),'utf8')));}catch{}
- for(const asset of Object.values(pages)){const file=path.basename(asset);if(/^[\da-f]{64}\.json$/.test(file))await fs.copyFile(path.join(cacheDirectory(),file),path.join(target,file));}
- await fs.writeFile(path.join(target,'index.json'),JSON.stringify({version:1,pages}));
+ const index={pages:{},external:new Set()};for(const name of await fs.readdir(output))if(name.endsWith('.html'))try{mergeManifest(index,JSON.parse(await fs.readFile(path.join(cacheDirectory(),'manifests',digest('/'+name)+'.json'),'utf8')));}catch{}
+ for(const asset of Object.values(index.pages)){const file=path.basename(asset);if(/^[\da-f]{64}\.json$/.test(file))await fs.copyFile(path.join(cacheDirectory(),file),path.join(target,file));}
+ await fs.writeFile(path.join(target,'index.json'),JSON.stringify(manifestIndex(index)));
  const vendor=path.join(output,'assets/darkreader');await fs.mkdir(vendor,{recursive:true});
  for(const name of ['darkreader.js','LICENSE'])await fs.copyFile(path.join(engineRoot(),name),path.join(vendor,name));
 }
@@ -54,9 +72,9 @@ export async function webDocumentAsset(pathname){
  if(pathname==='/assets/darkreader/darkreader.js')return {file:path.join(engineRoot(),'darkreader.js'),type:'text/javascript'};
  if(pathname==='/assets/darkreader/LICENSE')return {file:path.join(engineRoot(),'LICENSE'),type:'text/plain'};
  if(pathname==='/data/web-pages/index.json'){
-  const pages={...Object.fromEntries(assets)},directory=path.join(cacheDirectory(),'manifests');
-  try{for(const file of await fs.readdir(directory))if(/^[\da-f]{64}\.json$/.test(file))Object.assign(pages,JSON.parse(await fs.readFile(path.join(directory,file),'utf8')));}catch{}
-  return {body:JSON.stringify({version:1,pages}),type:'application/json'};
+  const index={pages:Object.fromEntries(assets),external:new Set(external)},directory=path.join(cacheDirectory(),'manifests');
+  try{for(const file of await fs.readdir(directory))if(/^[\da-f]{64}\.json$/.test(file))mergeManifest(index,JSON.parse(await fs.readFile(path.join(directory,file),'utf8')));}catch{}
+  return {body:JSON.stringify(manifestIndex(index)),type:'application/json'};
  }
  if(/^\/data\/web-pages\/[\da-f]{64}\.json$/.test(pathname))return {file:path.join(cacheDirectory(),path.basename(pathname)),type:'application/json'};
 }

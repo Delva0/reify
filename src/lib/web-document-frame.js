@@ -1,6 +1,7 @@
 // Executed inside the sandboxed preview, never in the blog document.
-export function webDocumentBootstrap({token,theme,anchor,scrollbars,cached=false}){
+export function webDocumentBootstrap({token,theme,anchor,scrollbars,cached=false,externalLinks=[]}){
  const send=(type,detail={})=>parent.postMessage({type,token,...detail},'*');
+ const external=new Set(externalLinks);
  let currentTheme=theme,generated=cached,cacheTimer,checkpoint,closed=false,lastSnapshot;
  const themeStyles=()=>[...document.querySelectorAll('style.darkreader:not([data-reify-theme-guard]):not([data-reify-scrollbars])')];
  const applyStyles=()=>{
@@ -45,6 +46,7 @@ export function webDocumentBootstrap({token,theme,anchor,scrollbars,cached=false
   document.addEventListener('click',event=>{
    const link=event.target.closest?.('a[href]');if(!link||event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||link.hasAttribute('download'))return;
    const url=new URL(link.href);if(!/^https?:$/.test(url.protocol))return;
+   const key=new URL(url);key.hash='';if(external.has(key.href))return;
    const base=new URL(document.baseURI);
    if(url.origin===base.origin&&url.pathname===base.pathname&&url.search===base.search&&url.hash){
     let id;try{id=decodeURIComponent(url.hash.slice(1));}catch{}const target=document.getElementById(id);if(target){event.preventDefault();target.scrollIntoView();return;}

@@ -1,5 +1,6 @@
 import {parse,serialize} from 'parse5';
 import {webDocumentBootstrap} from './web-document-frame.js';
+export {webDocumentKey} from './web-navigation.js';
 
 const attribute=(node,name)=>node.attrs?.find(item=>item.name===name)?.value;
 const set=(node,name,value)=>{node.attrs||=[];const old=node.attrs.find(item=>item.name===name);if(old)old.value=value;else node.attrs.push({name,value});};
@@ -9,7 +10,11 @@ const element=(tag,attrs={},value)=>{const node={nodeName:tag,tagName:tag,namesp
 const all=(node,predicate)=>children(node).flatMap(child=>[...(predicate(child)?[child]:[]),...all(child,predicate)]);
 const forbidden=new Set(['script','iframe','object','embed','base','noscript']);
 const unsafe=value=>/^\s*(?:javascript|vbscript|file):/i.test(value);
-export const webDocumentKey=href=>{const url=new URL(href);url.hash='';return url.href;};
+export function webDocumentLinks(html,base){
+ const origin=new URL(base).origin,links=new Set();
+ for(const node of all(parse(html),node=>node.tagName==='a'))try{const url=new URL(attribute(node,'href'),base);url.hash='';if(/^https?:$/.test(url.protocol)&&url.origin!==origin&&!url.username&&!url.password)links.add(url.href);}catch{}
+ return [...links];
+}
 export function webDocumentHasContent(html){
  const root=parse(html),body=all(root,node=>node.tagName==='body')[0];
  const readable=node=>['style','script','template'].includes(node.tagName)?'':node.nodeName==='#text'?node.value:children(node).map(readable).join('');
@@ -70,7 +75,7 @@ export async function prepareWebDocument(html,url,{loadStyle,styleLimit=64}={}){
  return {version:1,url,title:text(all(head,node=>node.tagName==='title')[0]||{}).trim()||new URL(url).hostname,html:serialize(root)};
 }
 
-export function webDocumentHtml(resource,{token,nonce,theme,engine,anchor,scrollbars,snapshot}){
+export function webDocumentHtml(resource,{token,nonce,theme,engine,anchor,scrollbars,snapshot,externalLinks=[]}){
  const root=parse(snapshot||resource.html),html=all(root,node=>node.tagName==='html')[0],head=all(root,node=>node.tagName==='head')[0],body=all(root,node=>node.tagName==='body')[0];
  const color=(value,fallback)=>typeof value==='string'&&value.trim()&&!/[;{}<>]/.test(value)?value:fallback;
  set(html,'data-reify-theme',theme.dark?'dark':'light');set(html,'data-reify-pending','');
@@ -81,7 +86,7 @@ export function webDocumentHtml(resource,{token,nonce,theme,engine,anchor,scroll
  // own style class, so this temporary palette does not affect color analysis.
  head.childNodes.splice(1,0,element('style',{class:'darkreader','data-reify-theme-guard':''},'html[data-reify-theme=dark][data-reify-pending],html[data-reify-theme=dark][data-reify-pending] body,html[data-reify-theme=dark][data-reify-pending] body *{background-color:var(--reify-paper)!important;background-image:none!important;color:var(--reify-ink)!important;border-color:var(--reify-ink)!important}html[data-reify-theme=dark]{color-scheme:dark}'));
  if(!snapshot)head.childNodes.push(element('script',{src:engine,nonce,async:'','data-reify-theme-engine':''}));
- const configuration=JSON.stringify({token,theme,anchor,scrollbars,cached:Boolean(snapshot)}).replace(/</g,'\\u003c');
+ const configuration=JSON.stringify({token,theme,anchor,scrollbars,cached:Boolean(snapshot),externalLinks}).replace(/</g,'\\u003c');
  body.childNodes.push(element('script',{nonce},'('+webDocumentBootstrap.toString()+')('+configuration+');'));
  return serialize(root);
 }

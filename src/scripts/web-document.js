@@ -1,13 +1,13 @@
 import {prepareWebDocument,webDocumentKey,webEmbeddingAllowed,webDocumentHtml,webDocumentHasContent} from '../lib/web-document.js';
 import scrollbarStyle from '../../public/scrollbars.css?raw';
 import {createWebThemeCache,webThemeKey} from '../lib/web-theme-cache.js';
+import {loadWebDocumentIndex,externalWebLinks} from './web-document-index.js';
 
-let index;const resources=new Map(),themes=createWebThemeCache();
+const resources=new Map(),themes=createWebThemeCache();
 export async function readWebDocument(href){
  const url=webDocumentKey(href);
  if(!resources.has(url))resources.set(url,(async()=>{
-  index??=fetch('/data/web-pages/index.json').then(response=>response.ok?response.json():null).catch(()=>null);
-  const asset=(await index)?.pages?.[url];
+  const asset=(await loadWebDocumentIndex())?.pages?.[url];
   if(asset){const response=await fetch(asset);if(response.ok){const value=await response.json();if(value.version===1&&typeof value.html==='string')return value;}}
   try{
    const response=await fetch(url,{credentials:'omit',signal:AbortSignal.timeout(10000)});
@@ -39,7 +39,7 @@ export function mountWebDocument(frame,resource,{href=resource.url,onLink}={}){
  const render=async()=>{const state=theme();let snapshot;
   try{if(state.dark)snapshot=await themes.get(await webThemeKey(resource,state));}catch{}
   if(closed)return;const current=theme();if(!current.dark||['paper','ink','scroll'].some(key=>current[key]!==state[key]))snapshot=null;
-  frame.srcdoc=webDocumentHtml(resource,{token,nonce,theme:current,engine:new URL('/assets/darkreader/darkreader.js',location.href).href,anchor:url.hash.slice(1),scrollbars:scrollbarStyle,snapshot});
+  frame.srcdoc=webDocumentHtml(resource,{token,nonce,theme:current,engine:new URL('/assets/darkreader/darkreader.js',location.href).href,anchor:url.hash.slice(1),scrollbars:scrollbarStyle,snapshot,externalLinks:externalWebLinks()});
  };render();
  const dispose=()=>{if(closed)return;closed=true;clearTimeout(watchdog);observer.disconnect();removeEventListener('message',listener);frame.removeEventListener('load',reveal);frame.removeAttribute('srcdoc');done();};
  return {ready,dispose};

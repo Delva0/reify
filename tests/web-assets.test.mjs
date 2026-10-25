@@ -9,9 +9,9 @@ test('static HTML assets cross the prerender boundary, retain requested URLs and
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'reify-web-test-')),oldRoot=process.env.REIFY_PROJECT_ROOT,fetcher=globalThis.fetch,requested=[];
  try{
   process.env.REIFY_PROJECT_ROOT=root;await fs.writeFile(path.join(root,'reify.config.json'),'{}');
-  globalThis.fetch=async url=>{
-   requested.push(url);const shell=url.endsWith('/shell'),blocked=url.endsWith('/blocked');
-   const response=new Response(shell?'<html><body><script>redirect()</script></body></html>':'<!doctype html><title>Guide</title><h1>Guide</h1><p>Published content</p>',{headers:{'Content-Type':'text/html',...(blocked?{'X-Frame-Options':'DENY'}:{})}});
+  globalThis.fetch=async(url,options={})=>{
+   requested.push({url,method:options.method||'GET'});if(url.endsWith('/unknown'))throw Error('unreachable');const shell=url.endsWith('/shell'),blocked=url.endsWith('/blocked');
+   const response=new Response(shell?'<html><body><script>redirect()</script></body></html>':'<!doctype html><title>Guide</title><h1>Guide</h1><p>Published content</p><a href="https://social.example/blocked#footer">Social</a><a href="https://social.example/unknown">Unknown</a><a href="https://social.example/allowed">Allowed</a>',{headers:{'Content-Type':'text/html',...(blocked?{'X-Frame-Options':'DENY'}:{})}});
    Object.defineProperty(response,'url',{value:url.endsWith('/guide')?'https://source.example/guide-v2':url});return response;
   };
   const producer=await import('../src/build/web-documents.mjs?producer');
@@ -22,6 +22,10 @@ test('static HTML assets cross the prerender boundary, retain requested URLs and
   await publisher.copyWebDocuments(pathToFileURL(output+path.sep));
   const index=JSON.parse(await fs.readFile(path.join(output,'data/web-pages/index.json'),'utf8'));
   assert.deepEqual(Object.keys(index.pages),['https://source.example/guide']);
+  assert.deepEqual(new Set(index.external),new Set(['https://source.example/blocked','https://source.example/shell','https://social.example/blocked']));
+  assert(requested.some(item=>item.url==='https://social.example/blocked'&&item.method==='HEAD'),'nested outbound links are checked before the reader clicks');
+  assert(!index.external.includes('https://social.example/unknown'),'a failed request is not evidence of an unavailable reading view');
+  assert(!index.external.includes('https://social.example/allowed'));
   const document=JSON.parse(await fs.readFile(path.join(output,index.pages['https://source.example/guide']),'utf8'));
   assert.equal(document.url,'https://source.example/guide-v2');assert(document.html.includes('Published content'));
   assert((await fs.stat(path.join(output,'assets/darkreader/darkreader.js'))).size>100000);

@@ -5,6 +5,8 @@ import {readingContext,setReadingContext} from '../lib/reading-context.js';
 import {markLink} from '../lib/links.js';
 import {notice} from '../lib/dom.js';
 import {navigateDocumentAnchor} from './document-view.js';
+import {externalPageTarget} from '../lib/web-navigation.js';
+import {loadWebDocumentIndex,opensExternalWebPage} from './web-document-index.js';
 
 let initialized=false;
 async function documentId(url,instance){
@@ -57,6 +59,11 @@ function openPage(props,context){
 
 export function initLinkPanels(){
  if(initialized)return;initialized=true;registerFpType('page',openPage);
+ loadWebDocumentIndex();
+ document.addEventListener('click',event=>{
+  const link=event.target.closest?.('a[href]');if(!link)return;
+  try{const target=externalPageTarget(link,event,readingContext(link).url,location.href,opensExternalWebPage);if(!target)return;event.preventDefault();event.stopImmediatePropagation();window.open(target,'_blank','noopener');}catch{}
+ },true);
  document.addEventListener('click',event=>{
   const link=event.target.closest?.('a[href]');if(!link)return;
   try{const state=linkPanelState(link,event,readingContext(link).url,location.href);if(!state)return;event.preventDefault();openFloatingPanels([state],{origin:link});}
