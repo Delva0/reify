@@ -1,17 +1,18 @@
 ---
 import {treeResizeHandle} from '../lib/tree-pane.js';
 import Icon from './Icon.astro';
+import TreeRoot from './TreeRoot.astro';
 const {repository,version}=Astro.props;
 ---
 {repository&&<aside id="github-files" class="github-files" aria-label="GitHub 文件列表" data-tree-url={`/data/trees/v3/${repository.id}/${version.commit}.json`}>
     <div class="github-files-heading">
-      <div class="tree-root">文件</div>
+      <TreeRoot label="文件" controls="file-tree-root"/>
       <div class="version-picker language-picker">
         <button id="language-trigger" class="version-trigger icon-button" aria-label="代码分布" data-tip="代码分布" aria-haspopup="listbox" aria-controls="language-menu" aria-expanded="false" disabled><Icon name="language"/></button>
         <div id="language-menu" class="version-menu language-menu" role="listbox" aria-labelledby="language-trigger" hidden/>
       </div>
     </div>
-  <div class="github-files-content">
+  <div id="file-tree-root" class="github-files-content">
     <div class="github-tree" aria-label="当前提交的文件"/>
   </div>
   <Fragment set:html={treeResizeHandle('调整文件列表宽度')}/>

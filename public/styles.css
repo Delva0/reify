@@ -152,10 +152,16 @@ td code{font-size:12px}
 :is(.repo-tree,.github-files,.document-outline) li:last-child::after{bottom:auto;height:var(--tree-junction)}
 
 /* Compact repository tree; hierarchy comes directly from MDX */
-.repo-tree{position:fixed;top:84px;bottom:24px;left:24px;width:var(--tree-width,220px);max-width:max(128px,calc(50vw - 434px));overflow:visible;font:12px/1.55 var(--sans);color:var(--muted)}
+.repo-tree{position:fixed;display:flex;flex-direction:column;top:84px;bottom:24px;left:24px;width:var(--tree-width,220px);max-width:max(128px,calc(50vw - 434px));overflow:visible;font:12px/1.55 var(--sans);color:var(--muted)}
 .repo-tree-content{height:100%;overflow:auto;padding-right:8px}
+.repo-tree>.repo-tree-content{flex:1;min-height:0;height:auto}
 .repo-tree>.tree-resize-handle{position:absolute;right:-4px;top:0;bottom:0}
 .tree-root{display:inline-block;margin-bottom:8px;padding:2px 4px;text-decoration:none;color:var(--ink)}
+.tree-root-row{position:relative;display:flex;align-items:flex-start;gap:var(--tree-gap);min-height:24px;min-width:0}
+.tree-root-row>.tree-root{margin:0;line-height:20px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tree-root-row>.tree-branch{margin-top:5px}
+.tree-root-row:has(>[aria-expanded=true])::after{content:'';position:absolute;left:7px;top:19px;bottom:0;border-left:1px solid var(--tree-line);pointer-events:none}
+.repo-tree-content>#repository-tree-root,.github-tree>ul{margin-left:7px}
 .tree-row{position:relative;display:flex;align-items:flex-start;gap:var(--tree-gap);min-width:0;min-height:24px}
 .tree-row:has(>.tree-branch[aria-expanded=true])::after{content:'';position:absolute;left:7px;top:19px;bottom:0;border-left:1px solid var(--tree-line);pointer-events:none}
 .tree-row>a{display:block;flex:1;min-width:0;padding:2px 4px;line-height:20px;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -179,8 +185,10 @@ td code{font-size:12px}
 /* GitHub source tree shares the reading column's side gutter. */
 .github-files{position:fixed;display:flex;flex-direction:column;top:84px;right:24px;bottom:24px;width:var(--tree-width,220px);max-width:max(128px,calc(50vw - 434px));color:var(--muted);font:12px/1.55 var(--sans)}
 .github-files-content{flex:1;min-height:0;overflow:auto;padding-left:8px}
-.github-files-heading{display:flex;align-items:center;justify-content:space-between;padding-left:8px;margin-bottom:4px;min-height:28px;flex-shrink:0}
+.github-files-heading,.repo-tree-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;min-height:28px;flex-shrink:0}
+.github-files-heading{padding-left:8px}
 .github-files-heading .tree-root{margin:0}
+.github-files-heading .tree-root-row:has(>[aria-expanded=true])::after,.repo-tree-heading .tree-root-row:has(>[aria-expanded=true])::after{bottom:-6px}
 .language-picker{font-family:var(--sans)}
 .language-picker .version-trigger{min-width:var(--control-size);width:var(--control-size);border-color:transparent;padding:5px;color:var(--muted)}
 .language-picker .version-trigger svg{width:16px;height:16px}
@@ -280,6 +288,7 @@ a.text-note{text-decoration-style:solid;cursor:pointer}
 /* Reader annotation controls and local editor */
 .selection-painted::selection,.selection-painted ::selection{background:transparent}
 .selection-painted :is(img,video,audio,canvas,iframe,object,embed)::selection{background:transparent;color:transparent}
+.selection-media{outline:1px solid var(--selection);outline-offset:2px}
 .selection-painted :is(input,textarea,[contenteditable=true],[data-reader-annotation-ui])::selection,.selection-painted [data-reader-annotation-ui] ::selection{background:var(--selection)}
 ::highlight(reader-selection){background:var(--selection);color:var(--selection-ink)}
 .reader-annotation-control{position:relative;display:inline-flex;flex-shrink:0}
@@ -300,7 +309,7 @@ a.text-note{text-decoration-style:solid;cursor:pointer}
 
 @media(max-width:1199px){
  .repo-tree{display:none;top:64px;left:16px;bottom:16px;width:var(--tree-width,220px);max-width:calc(100vw - 32px);padding:12px;border:1px solid var(--line);background:var(--paper);z-index:45}
- .repo-tree.is-open{display:block}
+ .repo-tree.is-open{display:flex}
  .github-files{display:none;top:64px;right:16px;bottom:16px;width:var(--tree-width,220px);max-width:calc(100vw - 32px);padding:12px;border:1px solid var(--line);background:var(--paper);z-index:45}
  .github-files.is-open{display:flex}
 }

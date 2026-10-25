@@ -7,7 +7,7 @@ import {markLink} from '../lib/links.js';
 import {initSidebar,disposeSidebar} from './sidebars.js';
 import {articleCodeBlock} from './article-pages.js';
 import {codeBlockDefinition} from '../lib/code-block.js';
-import {registerTreeBranch,toggleTreeBranch,commitTreeChange} from './tree-branches.js';
+import {registerTreeBranch,toggleTreeBranch,commitTreeChange,registerTreeRoot} from './tree-branches.js';
 
 const instances=new WeakMap();
 export function disposeGitHubFiles(panel=document.querySelector('.github-files')){instances.get(panel)?.dispose();}
@@ -113,6 +113,7 @@ export function initGitHubFiles(){
    }
    container.replaceChildren(list);
  }
+ const disposeRoot=registerTreeRoot(panel.querySelector('[data-tree-root-toggle]'),panel.querySelector('#file-tree-root'),{key:'tree-root:files:'+repository+'@'+commit,prepareChildren:loadRepository});
  initSidebar('files',visible=>{if((visible||activeFile)&&!started){started=true;loadRepository().catch(()=>{});}});
- const controller={dispose(){persist();lifetime.abort();++navigation;++selectionRevision;disposeSidebar('files');instances.delete(panel);}};instances.set(panel,controller);return controller;
+ const controller={dispose(){persist();disposeRoot();lifetime.abort();++navigation;++selectionRevision;disposeSidebar('files');instances.delete(panel);}};instances.set(panel,controller);return controller;
 }

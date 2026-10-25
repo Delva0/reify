@@ -1,14 +1,15 @@
 ---
 import TreeNodes from './TreeNodes.astro';
+import TreeRoot from './TreeRoot.astro';
 import {headingPages} from '../lib/article-pages.js';
 import {nestHeadings as nest} from '../lib/heading-tree.js';
 import {treeResizeHandle} from '../lib/tree-pane.js';
 const {navigation,current,headings,pageHref,site}=Astro.props;
 ---
 <aside class="repo-tree" aria-label="仓库与文章目录">
+  <div class="repo-tree-heading"><TreeRoot label={site.navigationLabel} href={site.home} controls="repository-tree-root"/></div>
   <div class="repo-tree-content">
-  <a class="tree-root" href={site.home}>{site.navigationLabel}</a>
-  <ul>{navigation.map(repo=>{
+  <ul id="repository-tree-root">{navigation.map(repo=>{
     const active=repo.id===current;
     if(!repo.versions)return <TreeNodes itemsOnly nodes={nest(active?headings:headingPages(repo.headings,repo.page.replace(/\.html$/,'')).flatMap(page=>page.headings))} pageHref={active?pageHref:undefined}/>;
     return <li>

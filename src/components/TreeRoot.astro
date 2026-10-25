@@ -1,0 +1,7 @@
+---
+const {label,href,controls}=Astro.props;
+---
+<div class="tree-root-row">
+ <button type="button" class="tree-branch" data-tree-root-toggle data-tree-root-label={label} aria-label={'收起'+label} aria-expanded="true" aria-controls={controls}><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8"/></svg></button>
+ {href?<a class="tree-root" href={href}>{label}</a>:<span class="tree-root">{label}</span>}
+</div>

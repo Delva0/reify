@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {registerTreeBranch,toggleTreeBranch,commitTreeChange} from '../src/scripts/tree-branches.js';
+import {registerTreeBranch,registerTreeRoot,toggleTreeBranch,commitTreeChange} from '../src/scripts/tree-branches.js';
 
 function folder(name,expanded=false,children=[]){
  const list={children,hidden:!expanded},path={value:expanded?'M2 6h8':'M2 6h8M6 2v8',setAttribute(_name,value){this.value=value;}};
@@ -41,4 +41,24 @@ test('Ctrl+click with no child folders is a no-op and non-left clicks are ignore
  const noFolders=folder('parent',true,[leaf(),leaf()]);toggleTreeBranch(noFolders.button,{ctrlKey:true,button:0});assert(expanded(noFolders));
  const child=folder('child',false),parent=folder('parent',true,[child]);toggleTreeBranch(parent.button,{ctrlKey:true,button:2});assert(!expanded(child));
  toggleTreeBranch(parent.button,{ctrlKey:false,button:2});assert(expanded(parent));
+});
+
+test('tree roots share folder toggles, restore collapsed state and prepare lazy direct children',async()=>{
+ const original=Object.getOwnPropertyDescriptor(globalThis,'localStorage'),saved=new Map([['files-root','false']]);
+ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:key=>saved.get(key),setItem:(key,value)=>saved.set(key,value)}});
+ const attributes=new Map(),listeners=new Map(),path={setAttribute(){}};
+ const button={dataset:{treeRootLabel:'文件'},getAttribute:key=>attributes.get(key),setAttribute:(key,value)=>attributes.set(key,value),querySelector:()=>path,addEventListener:(type,fn)=>listeners.set(type,fn),removeEventListener:type=>listeners.delete(type),closest:()=>null};
+ const grandchild=folder('deep',true),first=folder('a',true,[grandchild]),second=folder('b',false),list={children:[first,leaf(),second]};let ready=false,prepares=0;
+ const content={hidden:false,matches:()=>false,querySelector:()=>ready?list:null};
+ try{
+  const dispose=registerTreeRoot(button,content,{key:'files-root',prepareChildren:async()=>{prepares++;await Promise.resolve();ready=true;}});
+  assert(content.hidden);assert.equal(button.getAttribute('aria-expanded'),'false');assert.equal(button.getAttribute('aria-label'),'展开文件');
+  assert.equal(registerTreeRoot(button,content),dispose,'refresh does not add a second click binding');
+  content.hidden=false;registerTreeRoot(button,content);assert(content.hidden,'incremental DOM updates reapply the existing root state');
+  await listeners.get('click')({button:0});assert(!content.hidden);assert.equal(saved.get('files-root'),'true');
+  await listeners.get('click')({button:0,ctrlKey:true});assert.equal(prepares,1);assert(expanded(first)&&expanded(second)&&expanded(grandchild));
+  await listeners.get('click')({button:0,ctrlKey:true});assert(!expanded(first)&&!expanded(second));assert(expanded(grandchild));assert(!content.hidden,'Ctrl+click keeps the root itself expanded');
+  await listeners.get('click')({button:0});assert(content.hidden);assert.equal(saved.get('files-root'),'false');
+  dispose();assert.equal(listeners.size,0);
+ }finally{if(original)Object.defineProperty(globalThis,'localStorage',original);else delete globalThis.localStorage;}
 });

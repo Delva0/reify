@@ -1,11 +1,15 @@
-import {selectionPaintRanges} from './selection-paint.js';
+import {selectionPaint} from './selection-paint.js';
 
-let retained,paint;
+let retained,paint,selectedMedia=new Set();
 const supported=()=>Boolean(globalThis.CSS?.highlights&&typeof Highlight==='function');
 export const sameRange=(a,b)=>a&&b&&a.startContainer===b.startContainer&&a.startOffset===b.startOffset&&a.endContainer===b.endContainer&&a.endOffset===b.endOffset;
 function draw(range){
  if(!supported())return;
- if(range)CSS.highlights.set('reader-selection',new Highlight(...selectionPaintRanges(range)));else CSS.highlights.delete('reader-selection');
+ const {ranges,media}=range?selectionPaint(range):{ranges:[],media:[]},next=new Set(media);
+ for(const element of selectedMedia)if(!next.has(element))element.classList.remove('selection-media');
+ for(const element of next)if(!selectedMedia.has(element))element.classList.add('selection-media');
+ selectedMedia=next;
+ if(range)CSS.highlights.set('reader-selection',new Highlight(...ranges));else CSS.highlights.delete('reader-selection');
  document.documentElement.classList.toggle('selection-painted',Boolean(range));
 }
 export function retainSelection(range){

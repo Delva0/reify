@@ -34,7 +34,7 @@ export function patchTree(target,source,options){
  patchChildren(target,source,options);
  for(const [button,expanded]of branches){
   if(!target.contains(button))continue;button.setAttribute('aria-expanded',expanded);
-  const children=button.closest('li')?.querySelector(':scope > .tree-children,:scope > .tree-sections');if(children)children.hidden=expanded!=='true';
+  const children=button.hasAttribute('data-tree-root-toggle')?target.querySelector('#'+button.getAttribute('aria-controls')):button.closest('li')?.querySelector(':scope > .tree-children,:scope > .tree-sections');if(children)children.hidden=expanded!=='true';
   button.querySelector('path')?.setAttribute('d',expanded==='true'?'M2 6h8':'M2 6h8M6 2v8');
  }
 }
