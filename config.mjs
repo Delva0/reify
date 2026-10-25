@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import {createReadStream,realpathSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
 import {defineConfig} from 'astro/config';
 import mdx from '@astrojs/mdx';
 import {unified} from '@astrojs/markdown-remark';
@@ -10,6 +11,8 @@ import {sourceHighlightAssets} from './src/build/source-highlight.mjs';
 import {copyFileResources} from './src/build/file-resources.mjs';
 import {markdownOptions} from './src/markdown-options.mjs';
 const packageLocation=fileURLToPath(new URL('.',import.meta.url)),packageRoot=realpathSync.native(packageLocation),publicRoot=path.join(packageRoot,'public');
+const require=createRequire(import.meta.url);
+const portableHtml=Object.fromEntries(['decode-named-character-reference','hast-util-from-html-isomorphic'].map(name=>[name,require.resolve(name)]));
 export function defineReifyConfig({root=process.cwd(),...overrides}={}){
  const project=readSiteConfig(root);process.env.REIFY_PROJECT_ROOT=project.root;
  const markdown=markdownOptions(project);
@@ -31,5 +34,5 @@ export function defineReifyConfig({root=process.cwd(),...overrides}={}){
   },
   'astro:build:done':async({dir})=>{await fs.cp(publicRoot,fileURLToPath(dir),{recursive:true,force:false});await copyFileResources(dir);},
  }};
- return defineConfig({root:project.root,publicDir:project.publicDir,output:'static',devToolbar:{enabled:false},build:{format:'file'},vite:{worker:{format:'es'}},markdown:{processor:unified(markdown),shikiConfig:markdown.shikiConfig},integrations:[mdx(),integration],...overrides});
+ return defineConfig({root:project.root,publicDir:project.publicDir,cacheDir:path.join(project.root,'.astro'),output:'static',devToolbar:{enabled:false},build:{format:'file'},vite:{resolve:{alias:portableHtml},worker:{format:'es'}},markdown:{processor:unified(markdown),shikiConfig:markdown.shikiConfig},integrations:[mdx(),integration],...overrides});
 }

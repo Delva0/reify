@@ -2,12 +2,14 @@ import {hydrateReadingContent} from './reading-content.js';
 import {registerArticleBlocks} from './article-pages.js';
 import {codeBlockDefinition} from '../lib/code-block.js';
 import {readingContent} from '../lib/reading-content.js';
+import {readFile} from '../lib/github-files.js';
+import {bindTreeWidth} from './tree-width.js';
 const views=new WeakMap(),owners=new WeakSet();
 async function hydrateDocumentCode(block){
  if(!block.hasAttribute('data-document-code'))return;block.removeAttribute('data-document-code');
  try{
   const definition=codeBlockDefinition(block);let text=definition.code;
-  if(definition.src){const {readFile}=await import('../lib/github-files.js'),content=await readFile(definition.src);if(content.kind!=='text')throw Error('CodeBlock src 必须是文本文件');text=content.text;}
+  if(definition.src){const content=await readFile(definition.src);if(content.kind!=='text')throw Error('CodeBlock src 必须是文本文件');text=content.text;}
   const {highlightSource}=await import('../lib/source-highlight.js'),html=await highlightSource(text,definition.language),pre=new DOMParser().parseFromString(html,'text/html').querySelector('pre');
   pre.classList.add('astro-code');const {decorateCode}=await import('./code-annotations.js');await decorateCode(pre,definition);
   if(block.isConnected)block.querySelector(':scope > pre').replaceWith(pre);
@@ -27,7 +29,7 @@ export function mountDocumentView(view,owner=view.closest('.code-block,[data-cod
  let payload;try{payload=JSON.parse(view.dataset.documentData||'null');}catch{}
  const article=view.querySelector('[data-document-content]'),scrollPositions=new Map(),parsedPages=new Map(),pageSources=new Map(),rangePages=new Map(),rangeTargets=new Map();let current=0,sources=[];
  const pageDocument=index=>{if(!parsedPages.has(index))parsedPages.set(index,new DOMParser().parseFromString(payload.pages[index].html,'text/html'));return parsedPages.get(index);};
- const source=node=>({node,from:Number(node.dataset.mdxLine),to:Number(node.dataset.mdxEndLine||node.dataset.mdxLine)});
+ const source=node=>({from:Number(node.dataset.mdxLine),to:Number(node.dataset.mdxEndLine||node.dataset.mdxLine)});
  const intersects=(source,range)=>source.from<=range.to&&source.to>=range.from;
  const release=registerArticleBlocks(id=>{
   if(!payload)return null;
@@ -36,8 +38,8 @@ export function mountDocumentView(view,owner=view.closest('.code-block,[data-cod
   return null;
  });
  const indexSources=()=>{
-  sources=[...article.querySelectorAll('[data-mdx-line]')].filter(node=>node.closest('[data-file-document]')===view).map(source);
-  pageSources.set(current,sources);rangeTargets.clear();
+  sources=[...article.querySelectorAll('[data-mdx-line]')].filter(node=>node.closest('[data-file-document]')===view).map(node=>({node,...source(node)}));
+  pageSources.set(current,sources.map(({from,to})=>({from,to})));rangeTargets.clear();
  };
  const markRanges=()=>{
   const marked=new Set();for(const item of sources){const range=ranges.find(range=>intersects(item,range));if(!range)continue;const node=item.node;let parent=node.parentElement,inside=false;while(parent&&parent!==article){if(marked.has(parent)){inside=true;break;}parent=parent.parentElement;}if(inside)continue;marked.add(node);node.dataset.documentRange=range.color||'gray';}
@@ -66,8 +68,6 @@ export function mountDocumentView(view,owner=view.closest('.code-block,[data-cod
   const cached=rangeTargets.get(key);return navigate?cached.nearest:cached.match;
  };
  const hydrate=()=>{if(!article)return;hydrateReadingContent(article);indexSources();markRanges();for(const block of article.querySelectorAll('[data-document-code]'))hydrateDocumentCode(block);for(const nested of article.querySelectorAll('[data-file-document]'))mountDocumentView(nested);};
- hydrate();
- view.querySelector('.document-outline a[data-heading]')?.setAttribute('aria-current','page');
  const click=event=>{
   if(event.target.closest('[data-file-document]')!==view)return;
   const branch=event.target.closest('.document-outline .tree-branch');if(branch){const list=branch.closest('li').querySelector(':scope > .tree-sections');if(list){const open=branch.getAttribute('aria-expanded')==='true';branch.setAttribute('aria-expanded',String(!open));branch.querySelector('path').setAttribute('d',open?'M2 6h8M6 2v8':'M2 6h8');list.hidden=open;}return;}
@@ -78,8 +78,11 @@ export function mountDocumentView(view,owner=view.closest('.code-block,[data-cod
   const target=article.querySelector('#'+CSS.escape(id));if(target)article.scrollTop+=target.getBoundingClientRect().top-article.getBoundingClientRect().top-16;
   for(const item of view.querySelectorAll('.document-outline a[data-heading]')){if(item.dataset.heading===id)item.setAttribute('aria-current','location');else item.removeAttribute('aria-current');}
  };
- views.set(view,{target,release(){release();view.removeEventListener('click',click);}});
+ const outline=view.querySelector(':scope > .document-outline'),releaseWidth=bindTreeWidth(outline,outline?.querySelector(':scope > .tree-resize-handle'),{styleTarget:view,maximum:()=>Math.min(480,view.clientWidth-256),observe:view});
+ views.set(view,{target,release(){release();releaseWidth();view.removeEventListener('click',click);}});
  view.addEventListener('click',click);
+ hydrate();
+ view.querySelector('.document-outline a[data-heading]')?.setAttribute('aria-current','page');
  if(owner&&!owners.has(owner)){owners.add(owner);owner.querySelector(':scope > .code-header [data-code-document],:scope > .dialog-head [data-code-document]')?.addEventListener('click',()=>setDocumentMode(owner,owner.dataset.documentMode!=='rendered'));}
  if(owner)setDocumentMode(owner,owner.dataset.documentMode!=='source');
 }

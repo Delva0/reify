@@ -72,13 +72,13 @@ export function createCodeDialog({onClose,onDetach,onAttach}){
  };
  registerFloatingPanel(dialog,close);$('[data-close-source]',dialog).addEventListener('click',close);
  const rangeControl=$('[data-code-ranges]',dialog),rangeBadge=$('[data-symmetric-badge]',rangeControl);
- let rangeOffsets=[],rangeArea,rangePageStart,navigationFrame,navigationDirty=false,pendingJump,pendingDirection=0;
+ let sourceRangeTargets=[],rangeOffsets=[],rangeArea,rangePageStart,navigationFrame,navigationDirty=false,pendingJump,pendingDirection=0;
  const initializedModes=new Set();
  const rendered=()=>dialog.dataset.documentMode==='rendered';
  const mode=()=>rendered()?'rendered':'source';
  const activeView=()=>documentHost.querySelector(':scope > [data-file-document]');
  const scroller=()=>rendered()?documentHost.querySelector('[data-document-content]'):code;
- const rangeTarget=(index,navigate=false)=>rendered()?documentRangeTarget(activeView(),navigationRanges[index],navigate):$('[data-line="'+navigationRanges[index].from+'"].source-line',code);
+ const rangeTarget=(index,navigate=false)=>rendered()?documentRangeTarget(activeView(),navigationRanges[index],navigate):sourceRangeTargets[index];
  const rangeTip=index=>{
   if(!navigationRanges.length)return;
   const current=String(index+1),label='段落导航，当前第'+current+'段，共'+navigationRanges.length+'段';
@@ -93,8 +93,7 @@ export function createCodeDialog({onClose,onDetach,onAttach}){
   if(lastJump?.area===rangeArea&&Math.abs(lastJump.top-rangeArea.scrollTop)<1){rangeTip(lastJump.index);return;}
   const edge=rangeArea.scrollTop+1;let low=0,high=rangeOffsets.length;
   while(low<high){const middle=(low+high)>>1;if(rangeOffsets[middle].top<=edge)low=middle+1;else high=middle;}
-  const preceding=navigationRanges.findLastIndex(range=>range.from<=rangePageStart);
-  rangeTip(rangeOffsets[Math.max(0,low-1)]?.index??Math.max(0,preceding));
+  rangeTip(rangeOffsets[Math.max(0,low-1)]?.index??Math.max(0,navigationRanges.findLastIndex(range=>range.from<=rangePageStart)));
  };
  const measureRanges=()=>{
   rangeArea=scroller();rangeOffsets=[];rangePageStart=undefined;if(!rangeArea)return;
@@ -123,14 +122,14 @@ export function createCodeDialog({onClose,onDetach,onAttach}){
   navigationFrame=requestAnimationFrame(()=>{
    if(navigationDirty||!rangeArea)measureRanges();
    if(pendingJump!==undefined){jumpToRange(pendingJump);pendingJump=undefined;}
-   if(pendingDirection&&rangeArea){const direction=Math.sign(pendingDirection),steps=Math.abs(pendingDirection),index=rangeInDirection(direction);jumpToRange((index+direction*(steps-1)+navigationRanges.length)%navigationRanges.length);}
+   if(pendingDirection&&rangeArea){const direction=Math.sign(pendingDirection),steps=Math.abs(pendingDirection),length=navigationRanges.length,index=rangeInDirection(direction);jumpToRange(((index+direction*(steps-1))%length+length)%length);}
    pendingDirection=0;if(navigationDirty)measureRanges();refreshRangeTip();navigationFrame=undefined;
   });
  };
  const initializeNavigation=()=>{if(navigationRanges.length&&!initializedModes.has(mode()))pendingJump=lastJump?.index||0;scheduleNavigation(true);};
  const rangeObserver=new ResizeObserver(()=>scheduleNavigation(true)),documentObserver=new MutationObserver(()=>scheduleNavigation(true));
  dialog.addEventListener('documentmodechange',initializeNavigation);
- dialog.addEventListener('documentpagechange',()=>scheduleNavigation(true));
+ dialog.addEventListener('documentpagechange',event=>{if(event.target.parentElement===documentHost){lastJump=undefined;scheduleNavigation(true);}});
  dialog.addEventListener('load',()=>scheduleNavigation(true),true);
  dialog.addEventListener('scroll',event=>{if(navigationRanges.length&&event.target===scroller())scheduleNavigation();},true);
  rangeControl.addEventListener('pointerover',()=>scheduleNavigation());rangeControl.addEventListener('focusin',()=>scheduleNavigation());
@@ -143,7 +142,7 @@ export function createCodeDialog({onClose,onDetach,onAttach}){
  const lines=message||image?[]:highlighted.length?highlighted:(text??pre?.textContent??'').split('\n');
  setCodeText(dialog,message||image?null:lines.map(line=>typeof line==='string'?line.replace(/\r$/,''):line.textContent).join('\n'));
  const selectedRanges=normalizeLineRanges(ranges);
- lastJump=undefined;rangeOffsets=[];rangeArea=undefined;navigationDirty=false;pendingJump=undefined;pendingDirection=0;initializedModes.clear();rangeObserver.disconnect();documentObserver.disconnect();cancelAnimationFrame(navigationFrame);navigationFrame=undefined;
+ lastJump=undefined;sourceRangeTargets=[];rangeOffsets=[];rangeArea=undefined;navigationDirty=false;pendingJump=undefined;pendingDirection=0;initializedModes.clear();rangeObserver.disconnect();documentObserver.disconnect();cancelAnimationFrame(navigationFrame);navigationFrame=undefined;
  navigationRanges=message||image?[]:selectedRanges;
  dialog.dataset.hasRanges=String(navigationRanges.length>0);
  rangeControl.hidden=navigationRanges.length===0;rangeTip(0);
@@ -163,6 +162,7 @@ export function createCodeDialog({onClose,onDetach,onAttach}){
   const marked=selectedRanges[rangeIndex]?.from<=lineNumber;
   const row=document.createElement('div'),number=document.createElement('span'),value=document.createElement('code');
   row.className='source-line'+(marked?' mark':'');row.dataset.line=String(lineNumber);number.dataset.line=String(lineNumber);number.setAttribute('aria-hidden','true');
+  if(marked&&selectedRanges[rangeIndex].from===lineNumber)sourceRangeTargets[rangeIndex]=row;
   if(marked&&selectedRanges[rangeIndex].color)row.dataset.rangeColor=selectedRanges[rangeIndex].color;
   if(typeof line==='string')value.textContent=line.replace(/\r$/,'')||' ';else for(const child of line.childNodes)value.append(child.cloneNode(true));
   row.append(number,value);content.append(row);

@@ -1,0 +1,91 @@
+import assert from 'node:assert/strict';
+import {mountDocumentView,unmountDocumentView,documentRangeTarget} from '../src/scripts/document-view.js';
+import {articleCodeBlock} from '../src/scripts/article-pages.js';
+
+const saved=new Map(),stats={sourceQueries:0,lineReads:0,parsed:0},events=[],observers=[],resizeHandlers=new Set(),widthStyles=new Map(),handleListeners=new Map();
+const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
+const definitions=[
+ {html:'<section data-test-page="first"></section>',href:'first.html',lines:[1,10,20],nested:[45]},
+ {html:'<section data-test-page="second"></section>',href:'second.html',lines:[100,102,110],nested:[120]},
+];
+const payload={pages:definitions.map(({html,href})=>({html,href})),anchors:{'second-block':'second.html'}};
+function sourceNode(line,owner,parent){
+ const dataset={};
+ for(const key of ['mdxLine','mdxEndLine'])Object.defineProperty(dataset,key,{get(){stats.lineReads++;return String(line);}});
+ return {dataset,parentElement:parent,closest:selector=>selector==='[data-file-document]'?owner:null};
+}
+const handle={setAttribute(){},addEventListener:(type,handler)=>handleListeners.set(type,handler),removeEventListener:type=>handleListeners.delete(type)},outline={querySelector:()=>handle,classList:{remove(){}}};
+const listeners=new Map(),view={
+ dataset:{documentData:JSON.stringify(payload)},
+ clientWidth:720,style:{setProperty:(key,value)=>widthStyles.set(key,value)},
+ querySelector:selector=>selector==='[data-document-content]'?article:selector===':scope > .document-outline'?outline:null,
+ querySelectorAll:()=>[],
+ addEventListener(type,handler){if(!listeners.has(type))listeners.set(type,new Set());listeners.get(type).add(handler);},
+ removeEventListener(type,handler){listeners.get(type)?.delete(handler);},
+ dispatchEvent:event=>events.push(event.type),
+};
+const article={
+ scrollTop:0,
+ set innerHTML(html){this.select(definitions.find(page=>html.includes(page.html)));},
+ select(page){this.nodes=page.lines.map(line=>sourceNode(line,view,this));this.nested=page.nested.map(line=>sourceNode(line,{},this));},
+ querySelectorAll(selector){if(selector==='[data-mdx-line]'){stats.sourceQueries++;return [...this.nodes,...this.nested];}return [];},
+};
+article.select(definitions[0]);
+const secondBlock={matches:selector=>selector==='.code-block,template[data-code-definition]'};
+try{
+ install('document',{getElementById:()=>null,querySelector:()=>null});
+ install('addEventListener',(type,handler)=>{if(type==='resize')resizeHandlers.add(handler);});
+ install('removeEventListener',(type,handler)=>{if(type==='resize')resizeHandlers.delete(handler);});
+ install('ResizeObserver',class{constructor(callback){this.callback=callback;observers.push(this);}observe(target){this.target=target;}disconnect(){this.disconnected=true;}});
+ install('CustomEvent',class{constructor(type){this.type=type;}});
+ install('DOMParser',class{parseFromString(html){
+  stats.parsed++;const page=definitions.find(page=>page.html===html);
+  return {
+   querySelectorAll:selector=>selector==='[data-mdx-line]'?[...page.lines.map(line=>sourceNode(line,null)),...page.nested.map(line=>sourceNode(line,{}))]:[],
+   getElementById:id=>page===definitions[1]&&id==='second-block'?secondBlock:null,
+  };
+ }});
+ mountDocumentView(view,null,[{from:10,to:10,color:'yellow'}]);
+ assert.equal(widthStyles.get('--tree-width'),'220px');assert.equal(observers[0].target,view,'the outline observes its owning viewer size');
+ view.clientWidth=400;observers[0].callback();assert.equal(widthStyles.get('--tree-width'),'144px','narrow viewers retain room for document content');
+ view.clientWidth=720;observers[0].callback();assert.equal(widthStyles.get('--tree-width'),'220px');
+ assert.equal(stats.sourceQueries,1,'the visible page is indexed once during hydration');
+ assert.equal(stats.parsed,0,'mounting does not parse every inactive H1 page');
+ assert.equal(article.nodes[1].dataset.documentRange,'yellow','range decoration uses the same source index');
+ const first=article.nodes[1],reads=stats.lineReads;
+ for(let i=0;i<1000;i++){
+  assert.equal(documentRangeTarget(view,{from:10,to:10}),first);
+  assert.equal(documentRangeTarget(view,{from:102,to:102}),null,'ranges on other H1 pages never fall back to the current last paragraph');
+  assert.equal(documentRangeTarget(view,{from:45,to:45}),null,'nested document locations do not belong to their parent document');
+ }
+ assert.equal(stats.sourceQueries,1,'repeated range lookup never rescans the article subtree');
+ assert.equal(stats.lineReads,reads,'repeated range lookup never rereads source metadata');
+ assert.equal(stats.parsed,0,'reading and scroll tracking do not parse inactive pages');
+ assert.equal(await articleCodeBlock('second-block'),secondBlock,'inactive code definitions resolve directly from their owning page');
+ assert.equal(stats.parsed,1,'block resolution parses only its owning H1 page');
+ article.scrollTop=78;
+ const second=documentRangeTarget(view,{from:102,to:102},true);
+ assert.equal(second,article.nodes[1]);assert.notEqual(second,first);
+ assert.equal(article.scrollTop,0);assert.equal(stats.sourceQueries,2);assert.equal(stats.parsed,1,'range navigation reuses the parsed page');
+ assert.equal(documentRangeTarget(view,{from:10,to:10}),null,'switching H1 pages invalidates cached live targets');
+ assert.equal(documentRangeTarget(view,{from:120,to:120}),null,'nested source metadata is excluded on newly hydrated pages');
+ article.scrollTop=35;
+ assert.equal(documentRangeTarget(view,{from:10,to:10},true),article.nodes[1]);
+ assert.equal(article.scrollTop,78,'H1 navigation restores each page scroll position');
+ assert.equal(stats.parsed,1,'navigating back uses the existing source index rather than parsing the initial page');
+ assert.deepEqual(events,['documentpagechange','documentpagechange']);
+ const queries=stats.sourceQueries;
+ for(let i=0;i<100;i++)assert.equal(documentRangeTarget(view,{from:10,to:10},true),article.nodes[1]);
+ assert.equal(stats.sourceQueries,queries,'repeated navigation to the current range does not rehydrate the page');
+ assert.equal(documentRangeTarget(view,{from:999,to:999},true),article.nodes.at(-1),'explicit navigation may fall back to the nearest available location');
+ assert.equal(documentRangeTarget(view,{from:999,to:999}),null,'the navigation fallback never contaminates scroll tracking');
+ assert.equal(stats.parsed,1);
+ unmountDocumentView(view);
+ assert.equal(documentRangeTarget(view,{from:10,to:10}),undefined);
+ assert.equal(listeners.get('click').size,0,'unmount releases the view listener');
+ assert.equal(handleListeners.size,0);assert.equal(resizeHandlers.size,0);assert(observers[0].disconnected,'unmount disposes the shared outline width controller');
+ assert.equal(await articleCodeBlock('second-block'),null,'unmount releases inactive block definitions');
+ mountDocumentView(view,null);assert.equal(listeners.get('click').size,1,'remount installs one fresh click handler');
+ unmountDocumentView(view);
+ console.log('Document range lookup caches current-page nodes and targets; H1 navigation stays lazy, isolated, and disposable.');
+}finally{for(const [name,descriptor]of saved)if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}

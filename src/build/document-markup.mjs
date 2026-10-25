@@ -3,12 +3,30 @@ import {headingTreeHtml} from '../lib/heading-tree-html.js';
 import {paginateArticle} from './article-pages.mjs';
 import {scopeDocument} from './document-scope.mjs';
 import {readingContent} from '../lib/reading-content.js';
+import {treeResizeHandle} from '../lib/tree-pane.js';
+
 export function prepareDocument(html,{id,title='文档',sourceUrl}={}){
  const document=paginateArticle(scopeDocument(html,id,sourceUrl),id,{allowUntitled:true,title});
- for(const page of document.pages)page.html=page.html.replace(/href="[^"#]*\.html#([^"]+)"/g,'href="#$1"');
- return {pages:document.pages.map(({id,title,html,href})=>({id,title,html,href})),anchors:document.manifest.anchors,tree:headingTreeHtml(nestHeadings(document.headings.map(heading=>({...heading,href:'#'+heading.slug}))))};
+ const pageHrefs=new Set(document.pages.map(page=>page.href));
+ const pages=document.pages.map(({id,title,html,href})=>({
+  id,title,href,
+  // Article pages use separate URLs. Embedded pages use the same anchor map,
+  // while their owner switches the visible H1 page without leaving the file.
+  html:html.replace(/href="([^"#]+)#([^"]+)"/g,(attribute,page,anchor)=>pageHrefs.has(page)?'href="#'+anchor+'"':attribute)
+ }));
+ const headings=document.headings.map(heading=>({...heading,href:'#'+heading.slug}));
+ return {pages,anchors:document.manifest.anchors,tree:headingTreeHtml(nestHeadings(headings))};
 }
+
+function attributeJson(value){
+ return JSON.stringify(value).replace(/</g,'\\u003c').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+}
+
+// Astro and the worker use one outline, reading-content wrapper and payload.
 export function documentMarkup(html,options){
- const data=prepareDocument(html,options),payload=JSON.stringify(data).replace(/</g,'\\u003c').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
- return '<div class="file-document" data-file-document data-document-data="'+payload+'"><aside class="document-outline" aria-label="文档目录">'+data.tree+'</aside><div class="reading-viewport document-content" data-document-content>'+readingContent(data.pages[0].html)+'</div></div>';
+ const data=prepareDocument(html,options);
+ return '<div class="file-document" data-file-document data-document-data="'+attributeJson(data)+'">'
+  +'<aside class="document-outline" aria-label="文档目录"><div class="repo-tree-content">'+data.tree+'</div>'+treeResizeHandle()+'</aside>'
+  +'<div class="reading-viewport document-content" data-document-content>'+readingContent(data.pages[0].html)+'</div>'
+  +'</div>';
 }

@@ -35,7 +35,7 @@ export function initCodeViewers(){registerFpType('code',(props,{onClose,onDetach
     if(!element)throw Error('代码块不存在：'+props.block);
     definition=codeBlockDefinition(element);sourceOrigin=element.closest('[data-mdx-line]');
     const pre=element.matches('.code-block')?$('pre',element):null,prepared=(element.content||element).querySelector('[data-file-document]');
-    if(pre){const view=await documentView(pre,{src:definition?.src,language:element.dataset.language,prepared});if(alive())viewer.update({title:$('.code-language',element)?.textContent||'文本',pre:pre.cloneNode(true),sourceFile:definition?.src||'',origin:sourceOrigin,ranges:definition?.ranges||[],documentView:view});return;}
+    if(pre?.querySelector(':scope > code > .line')){const view=await documentView(pre,{src:definition?.src,language:element.dataset.language,prepared});if(alive())viewer.update({title:$('.code-language',element)?.textContent||'文本',pre,sourceFile:definition?.src||'',origin:sourceOrigin,ranges:definition?.ranges||[],documentView:view});return;}
     if(!definition)throw Error('代码块定义无效：'+props.block);
     file=definition.src;ranges=definition.ranges;annotations=definition;
     if(definition.code!==undefined){

@@ -1,4 +1,5 @@
 ---
+import {treeResizeHandle} from '../lib/tree-pane.js';
 import Icon from './Icon.astro';
 const {repository,version}=Astro.props;
 ---
@@ -13,5 +14,5 @@ const {repository,version}=Astro.props;
   <div class="github-files-content">
     <div class="github-tree" aria-label="当前提交的文件"/>
   </div>
-  <div class="tree-resize-handle" role="separator" aria-label="调整文件列表宽度" aria-orientation="vertical" aria-valuemin="128" aria-valuemax="480" aria-valuenow="220" tabindex="0"/>
+  <Fragment set:html={treeResizeHandle('调整文件列表宽度')}/>
 </aside>}

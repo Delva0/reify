@@ -29,7 +29,7 @@
 html{scroll-padding-top:74px;scrollbar-gutter:stable}
 html:has(dialog[open][data-modal=true]),html.reader-annotation-capturing{overflow:hidden;overscroll-behavior:none}
 [data-floating-panel]{overscroll-behavior:contain}
-[data-floating-panel]:not([data-floating-layer=title]){overflow:auto}
+:where([data-floating-panel]:not([data-floating-layer=title])){overflow:auto}
 body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.8 var(--sans)}
 a{color:inherit;text-decoration:underline solid var(--underline);text-decoration-thickness:1px;text-underline-offset:4px}
 .document .heading-link{text-decoration:none}
@@ -237,9 +237,10 @@ dialog[data-modal=false]>[data-source-code],dialog[data-modal=false]>[data-sourc
 [data-source-preview] button{margin-left:12px}
 
 /* Document files use the article renderer and a local heading tree. */
-.file-document{display:grid;grid-template-columns:minmax(120px,24%) minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-height:0;max-height:calc(var(--panel-max-height,640px) - var(--dialog-bar-height) - 2px);background:var(--paper)}
-.document-outline{min-width:0;overflow:auto;padding:16px 10px;border-right:1px solid var(--line);overscroll-behavior:contain;font-size:12px;line-height:1.65;--tree-indent:8px}
-.document-outline>.tree-sections{padding-left:0;margin:0}
+.file-document{display:grid;grid-template-columns:minmax(128px,var(--tree-width,220px)) minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-height:0;max-height:calc(var(--panel-max-height,640px) - var(--dialog-bar-height) - 2px);background:var(--paper)}
+.document-outline{position:relative;min-width:0;min-height:0;padding:16px 10px;overscroll-behavior:contain;font-size:12px;line-height:1.65;--tree-indent:8px}
+.document-outline>.tree-resize-handle{position:absolute;top:0;right:-4px;bottom:0;z-index:1}
+.document-outline>.repo-tree-content>.tree-sections{padding-left:0;margin:0}
 .document-outline .tree-sections{list-style:none}
 .document-outline .tree-sections .tree-sections{margin-left:7px;padding-left:var(--tree-indent)}
 .document-outline .tree-heading{font-size:12px}
@@ -254,7 +255,6 @@ dialog[data-modal=false]>[data-source-code],dialog[data-modal=false]>[data-sourc
 dialog[data-modal=false]>[data-source-document]{flex:1}
 dialog[data-modal=false]>[data-source-document]>.file-document{height:100%;max-height:none}
 .code-block>[hidden],dialog>[hidden]{display:none!important}
-@media(max-width:600px){.file-document{grid-template-columns:120px minmax(0,1fr)}}
 
 /* Demos and evidence use the same 12px panel inset */
 .refs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:16px}

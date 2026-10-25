@@ -1,0 +1,64 @@
+import assert from 'node:assert/strict';
+import {createCodeDialog} from '../src/scripts/code-dialog.js';
+import {setDocumentMode} from '../src/scripts/document-view.js';
+
+const saved=new Map(),install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
+const dataKey=name=>name.slice(5).replace(/-([a-z])/g,(_all,letter)=>letter.toUpperCase());
+let reads=0,queries=0;
+class Node{
+ constructor(tag='div',attributes={}){this.tagName=tag.toUpperCase();this.childNodes=[];this.attributes={};this.dataset={};this.style={removeProperty(name){delete this[name];}};this.listeners=new Map();this.scrollTop=0;this.scrollLeft=0;for(const [name,value]of Object.entries(attributes))this.setAttribute(name,value);}
+ setAttribute(name,value){if(name==='class')this.className=value;else if(name.startsWith('data-'))this.dataset[dataKey(name)]=String(value);else this.attributes[name]=String(value);}
+ getAttribute(name){return name==='class'?this.className??null:name.startsWith('data-')?this.dataset[dataKey(name)]??null:this.attributes[name]??null;}
+ hasAttribute(name){return this.getAttribute(name)!==null;}
+ removeAttribute(name){if(name.startsWith('data-'))delete this.dataset[dataKey(name)];else delete this.attributes[name];}
+ get children(){return this.childNodes;}
+ get textContent(){return (this.text||'')+this.childNodes.map(node=>node.textContent).join('');}
+ set textContent(value){this.text=value;this.replaceChildren();}
+ append(...nodes){for(const node of nodes){if(node.tagName==='#FRAGMENT'){this.append(...node.childNodes);continue;}node.parentElement?.childNodes.splice(node.parentElement.childNodes.indexOf(node),1);this.childNodes.push(node);node.parentElement=this;}}
+ replaceChildren(...nodes){for(const node of this.childNodes)node.parentElement=null;this.childNodes=[];this.append(...nodes);}
+ remove(){this.parentElement?.childNodes.splice(this.parentElement.childNodes.indexOf(this),1);this.parentElement=null;}
+ contains(node){return node===this||this.childNodes.some(child=>child.contains(node));}
+ simple(selector,scope){if(selector===':scope')return this===scope;const tag=selector.match(/^[\w-]+/)?.[0];if(tag&&tag.toUpperCase()!==this.tagName)return false;for(const match of selector.matchAll(/\.([\w-]+)|\[([\w-]+)(?:=['"]?([^'"\]]+)['"]?)?\]/g)){if(match[1]&&!this.className?.split(' ').includes(match[1]))return false;if(match[2]&&(!this.hasAttribute(match[2])||match[3]!==undefined&&this.getAttribute(match[2])!==match[3]))return false;}return true;}
+ matches(selector,scope=this){return selector.split(',').some(part=>{const tokens=part.trim().match(/[^\s>]+|>/g);const match=(node,index)=>{if(!node||!node.simple(tokens[index],scope))return false;if(index===0)return true;if(tokens[index-1]==='>')return match(node.parentElement,index-2);for(let parent=node.parentElement;parent;parent=parent.parentElement)if(match(parent,index-1))return true;return false;};return match(this,tokens.length-1);});}
+ closest(selector){for(let node=this;node;node=node.parentElement)if(node.matches(selector))return node;return null;}
+ querySelectorAll(selector){queries++;const result=[];const visit=node=>{for(const child of node.childNodes){if(child.matches(selector,this))result.push(child);visit(child);}};visit(this);return result;}
+ querySelector(selector){return this.querySelectorAll(selector)[0]??null;}
+ cloneNode(deep){const node=new Node(this.tagName,this.attributes);node.className=this.className;node.dataset={...this.dataset};node.text=this.text;if(deep)node.append(...this.childNodes.map(child=>child.cloneNode(true)));return node;}
+ addEventListener(name,fn){if(!this.listeners.has(name))this.listeners.set(name,new Set());this.listeners.get(name).add(fn);}
+ removeEventListener(name,fn){this.listeners.get(name)?.delete(fn);}
+ dispatchEvent(event){if(!event.target)Object.defineProperty(event,'target',{value:this});for(const fn of this.listeners.get(event.type)||[])fn(event);if(event.bubbles)this.parentElement?.dispatchEvent(event);return true;}
+ getBoundingClientRect(){reads++;const area=this.closest('[data-source-code],[data-document-content]');const offset=this.dataset.line!==undefined?(Number(this.dataset.line)-1)*20+24:Number(this.dataset.mdxLine||1)*20;const top=area&&area!==this?100+offset-area.scrollTop:100;return {left:100,top,width:800,height:500,right:900,bottom:top+500};}
+ show(){this.open=true;}
+ close(){this.open=false;this.dispatchEvent(new Event('close'));}
+}
+const element=(tag,attributes,children=[])=>{const node=new Node(tag,attributes);node.append(...children);return node;};
+const frames=new Map(),resizeObservers=[],mutationObservers=[];let nextFrame=0;
+const flush=()=>{const pending=[...frames.values()];frames.clear();for(const fn of pending)fn();};
+try{
+ install('Element',Node);install('CustomEvent',class extends Event{constructor(type,options={}){super(type,options);this.detail=options.detail;}});
+ install('requestAnimationFrame',fn=>{frames.set(++nextFrame,fn);return nextFrame;});install('cancelAnimationFrame',id=>frames.delete(id));
+ install('ResizeObserver',class{constructor(fn){this.fn=fn;resizeObservers.push(this);}observe(){}disconnect(){}});
+ install('MutationObserver',class{constructor(fn){this.fn=fn;mutationObservers.push(this);}observe(){}disconnect(){}});
+ install('addEventListener',()=>{});install('removeEventListener',()=>{});install('getComputedStyle',()=>({minHeight:'51px'}));
+ const badge=element('span',{'data-symmetric-badge':''}),ranges=element('div',{'data-code-ranges':''},[badge,element('button',{'data-code-previous':''}),element('button',{'data-code-next':''})]);
+ const head=element('div',{class:'dialog-head'},[element('span',{'data-source-title':''}),ranges,element('button',{'data-code-document':''}),element('button',{'data-code-wrap':''}),element('button',{'data-close-source':''})]);
+ const template=element('dialog',{'data-code-viewer':'','data-floating-panel':'','data-modal':'true'},[head,element('pre',{'data-source-code':''}),element('div',{'data-source-preview':''}),element('div',{'data-source-document':''})]);
+ const body=new Node('body'),backdrop=new Node(),root={body,createElement:tag=>new Node(tag),createDocumentFragment:()=>new Node('#fragment'),querySelector:selector=>selector==='#code-viewer-template'?{content:{firstElementChild:template}}:selector==='.code-backdrop'?backdrop:null,querySelectorAll:()=>[],addEventListener(){}};
+ install('document',root);
+ const viewer=createCodeDialog({}),dialog=viewer.panel,code=dialog.querySelector('[data-source-code]'),documentHost=dialog.querySelector('[data-source-document]'),rangeBadge=dialog.querySelector('[data-symmetric-badge]'),next=dialog.querySelector('[data-code-next]'),previous=dialog.querySelector('[data-code-previous]'),header=dialog.querySelector('.dialog-head');
+ const source=Array.from({length:100},(_value,index)=>'line '+(index+1)).join('\n'),selected=[{from:10,to:12},{from:30,to:31},{from:60,to:62}];
+ viewer.update({title:'source',text:source,ranges:selected});assert.equal(frames.size,1);flush();assert.equal(code.scrollTop,180);assert.equal(rangeBadge.textContent,'1');
+ const beforeReads=reads,beforeQueries=queries;code.scrollTop=620;for(let i=0;i<20;i++)dialog.dispatchEvent({type:'scroll',target:code});assert.equal(frames.size,1);assert.equal(reads,beforeReads,'scroll events do not measure layout');flush();assert.equal(reads,beforeReads,'scroll uses cached range offsets');assert.equal(queries,beforeQueries,'source navigation retains the built line targets');assert.equal(rangeBadge.textContent,'2');
+ next.dispatchEvent(new Event('click'));flush();assert.equal(code.scrollTop,1180);assert.equal(rangeBadge.textContent,'3');
+ for(let i=0;i<8;i++)previous.dispatchEvent(new Event('click'));assert.equal(frames.size,1);flush();assert.equal(rangeBadge.textContent,'1','rapid previous clicks wrap through the range list');
+ const doc=element('div',{'data-file-document':''},[element('aside',{class:'document-outline'}),element('div',{'data-document-content':''},selected.map(range=>element('p',{'data-mdx-line':String(range.from),'data-mdx-end-line':String(range.to)})))]);
+ viewer.update({title:'document',text:source,ranges:selected,documentView:doc});flush();assert.equal(dialog.dataset.documentMode,'rendered');
+ const article=documentHost.querySelector('[data-document-content]'),outline=documentHost.querySelector('.document-outline');article.scrollTop=410;setDocumentMode(dialog,false);flush();assert.equal(code.scrollTop,180,'the first source view starts at the selected line');
+ code.scrollTop=715;setDocumentMode(dialog,true);flush();assert.equal(article.scrollTop,410,'returning to rendered mode preserves manual reading');setDocumentMode(dialog,false);flush();assert.equal(code.scrollTop,715,'returning to source preserves its own position');
+ setDocumentMode(dialog,true);flush();article.scrollTop=360;outline.scrollTop=85;outline.scrollLeft=11;
+ const nativeDataset=dialog.dataset;dialog.dataset=new Proxy(nativeDataset,{set(target,key,value){target[key]=value;if(key==='modal'){for(const node of [code,article,outline])node.scrollTop=node.scrollLeft=0;}return true;}});
+ const doubleClick=()=>header.dispatchEvent({type:'dblclick',clientX:200,clientY:110,target:header});doubleClick();assert.equal(dialog.dataset.modal,'false');assert.equal(article.scrollTop,360);assert.equal(outline.scrollTop,85);assert.equal(outline.scrollLeft,11,'detaching preserves document and outline scroll');doubleClick();assert.equal(dialog.dataset.modal,'true');assert.equal(article.scrollTop,360);assert.equal(code.scrollTop,715,'reattaching preserves both display modes');
+ viewer.update({title:'plain',text:source});const plainQueries=queries;dialog.dataset.documentMode='rendered';for(let i=0;i<20;i++)dialog.dispatchEvent({type:'scroll',target:article});dialog.dispatchEvent(new Event('documentmodechange'));assert.equal(queries,plainQueries,'documents without ranges never query navigation targets');assert.equal(frames.size,0);
+ viewer.update({title:'pending',text:source,ranges:selected});assert.equal(frames.size,1);viewer.close();assert.equal(frames.size,0,'closing cancels pending navigation');assert.equal(viewer.alive(viewer.current()),false);
+ console.log('Code dialog batches range navigation, preserves mode and outline scroll, skips unmarked documents, and cancels work on close.');
+}finally{for(const [name,descriptor]of saved)if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}

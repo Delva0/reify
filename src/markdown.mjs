@@ -13,7 +13,7 @@ export const exactHeadings=()=> (tree,file)=>{
 export const sourceLocations=()=>tree=>{
  const visit=node=>{
   const p=node.position;
-  if(p){const props={'data-mdx-line':String(p.start.line),'data-mdx-column':String(p.start.column),'data-mdx-end-line':String(p.end.line),'data-mdx-end-column':String(p.end.column)};
+  if(p?.start&&p?.end){const props={'data-mdx-line':String(p.start.line),'data-mdx-column':String(p.start.column),'data-mdx-end-line':String(p.end.line),'data-mdx-end-column':String(p.end.column)};
    if(node.type==='element'&&/^(h[1-6]|p|li|pre|table|blockquote|figure|img)$/.test(node.tagName)){node.properties||={};Object.assign(node.properties,props);}
    else if(/^mdxJsx/.test(node.type)&&node.name){node.attributes||=[];for(const [name,value]of Object.entries(props))node.attributes.push({type:'mdxJsxAttribute',name,value});}
   }

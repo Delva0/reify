@@ -6,16 +6,17 @@ const descriptors=new Map(),install=(key,value)=>{descriptors.set(key,Object.get
 const a={type:'code',props:{file:'src/a.cpp',ranges:[{from:10,to:20}]}},b={type:'code',props:{file:'src/b.cpp',ranges:[]}},storage=new Map(),listeners=new Map(),opened=[],changes=[];
 assert.deepEqual(appendFpState([a],[b]),[a,b],'opening a child FP preserves its parent');
 assert.deepEqual(appendFpState([a,b],[a]),[b,a],'reopening an existing FP raises it without duplicating the state');
+assert.throws(()=>appendFpState(Array.from({length:16},(_value,index)=>({type:'code',props:{file:index+'.md',ranges:[]}})),[a]),/16/,'nested links respect the same panel limit before creating a viewer');
 try{
  install('location',new URL('https://example.test/article.html?theme=light#mdx-3'));
  install('localStorage',{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)});
  storage.set('floating-panels-v1:owner/repo@commit',JSON.stringify([a,b]));
- install('document',{body:{dataset:{repositoryName:'owner/repo',commit:'commit'}},addEventListener(){},dispatchEvent:event=>changes.push(event.detail.state)});
+ install('document',{body:{dataset:{repositoryName:'owner/repo',commit:'commit'}},querySelector:()=>null,addEventListener:(name,fn)=>listeners.set(name,fn),dispatchEvent:event=>changes.push(event.detail.state)});
  install('addEventListener',(name,fn)=>listeners.set(name,fn));
  install('history',{state:null,pushState(_state,_title,url){globalThis.location=new URL(url);},replaceState(_state,_title,url){globalThis.location=new URL(url);}});
- const factory=(props,{onClose,onDetach,onAttach})=>{const view={props,panel:{dataset:{},style:{}},closed:false,detach(){onDetach();},attach(){onAttach();},close(){if(!view.closed){view.closed=true;onClose();}}};opened.push(view);return view;};
+ const factory=(props,{onClose,onDetach,onAttach,parentsReady})=>{const view={props,parentsReady,ready:Promise.resolve(),panel:{dataset:{},style:{}},closed:false,detach(){onDetach();},attach(){onAttach();},close(){if(!view.closed){view.closed=true;onClose();}}};opened.push(view);return view;};
  registerFpType('code',factory);initFpNavigation();assert.deepEqual(floatingPanelState(),[a,b],'refresh restores every saved panel');assert(location.search.startsWith('?theme=light&fp=!('));
- const first=opened[0],second=opened[1];second.close();assert.deepEqual(floatingPanelState(),[a]);assert(!first.closed,'closing the top panel preserves the existing lower instance');assert(location.search.includes('fp=code&file=src/a.cpp'));
+ const first=opened[0],second=opened[1];assert.deepEqual(first.parentsReady,[]);assert.deepEqual(second.parentsReady,[first.ready],'refresh dependencies include prior panels so nested block definitions can load');second.close();assert.deepEqual(floatingPanelState(),[a]);assert(!first.closed,'closing the top panel preserves the existing lower instance');assert(location.search.includes('fp=code&file=src/a.cpp'));
  showFloatingPanels([a,b]);assert.equal(opened.length,3,'unchanged lower panel is reused');first.close();assert.deepEqual(floatingPanelState(),[b]);assert(!opened[2].closed,'closing a lower instance does not overwrite the remaining URL state');
  globalThis.location=new URL('https://example.test/article.html'+fpHref([a,b])+'#mdx-3');listeners.get('popstate')();assert.deepEqual(floatingPanelState(),[a,b],'history restores the full list');
  globalThis.location=new URL('https://example.test/article.html#mdx-3');listeners.get('popstate')();assert.equal(floatingPanelState().length,0);assert(opened.every(view=>view.closed));
@@ -30,5 +31,8 @@ try{
  detached.detach();assert.deepEqual(floatingPanelState(),[a]);
  showFloatingPanels([]);assert(remaining.closed);assert(!detached.closed,'URL navigation preserves the non-modal viewer');
  const detachedUrl=location.href;detached.close();assert.equal(location.href,detachedUrl,'closing a non-modal viewer does not alter unrelated URL state');
+ showFloatingPanels([a]);const parent=opened.at(-1),link={target:'',hasAttribute:()=>false,getAttribute:()=>fpHref([b]),closest:selector=>selector==='[data-floating-panel]'?{}:null},click={target:{closest:()=>link},button:0,preventDefault(){this.defaultPrevented=true;}};
+ listeners.get('click')(click);assert.deepEqual(floatingPanelState(),[a,b]);assert(!parent.closed,'clicking an FP link inside a panel preserves its parent instance');
+ const full=Array.from({length:16},(_value,index)=>({type:'code',props:{file:index+'.md',ranges:[]}}));showFloatingPanels(full);click.defaultPrevented=false;const count=opened.length;assert.doesNotThrow(()=>listeners.get('click')(click));assert.deepEqual(floatingPanelState(),full);assert.equal(opened.length,count,'an invalid merged state opens no partial panels');showFloatingPanels([]);
  console.log('FP state: saved multi-panel restore, independent close, instance reuse, history, future types and unrelated URL fields passed');
 }finally{delete fpTypes.example;for(const [key,descriptor]of descriptors)if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}

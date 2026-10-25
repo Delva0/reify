@@ -5,7 +5,7 @@ import {notice} from '../lib/dom.js';
 
 const types=new Map();let entries=[],initialized=false;
 export const floatingPanelState=()=>entries.map(entry=>entry.state);
-export function appendFpState(current,incoming){const keys=new Set(incoming.map(item=>fpHref([item])));return [...current.filter(item=>!keys.has(fpHref([item]))),...incoming];}
+export function appendFpState(current,incoming){const keys=new Set(incoming.map(item=>fpHref([item])));return validateFpState([...current.filter(item=>!keys.has(fpHref([item]))),...incoming]);}
 export function registerFpType(type,open){types.set(type,open);}
 const storageKey=()=>`floating-panels-v1:${document.body.dataset.repositoryName}@${document.body.dataset.commit}`;
 function sync(historyMode){
@@ -36,8 +36,11 @@ export function initFpNavigation(){
  if(initialized)return;initialized=true;
  document.addEventListener('click',event=>{
   const link=event.target.closest?.('a[href]');if(!link||event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||link.hasAttribute('download')||(link.target&&link.target!=='_self'))return;
-  let state;try{state=parseFpUrl(link.getAttribute('href'),location.href);}catch(error){event.preventDefault();notice(error.message);return;}
-  if(!state)return;event.preventDefault();if(link.closest('[data-floating-panel]'))state=appendFpState(floatingPanelState(),state);showFloatingPanels(state,{origin:link.closest('[data-mdx-line]')});
+  try{
+   let state=parseFpUrl(link.getAttribute('href'),location.href);if(!state)return;
+   event.preventDefault();if(link.closest('[data-floating-panel]'))state=appendFpState(floatingPanelState(),state);
+   showFloatingPanels(state,{origin:link.closest('[data-mdx-line]')});
+  }catch(error){event.preventDefault();notice(error.message);}
  });
  addEventListener('popstate',()=>{try{showFloatingPanels(parseFpUrl(location.href,location.href)||[],{historyMode:false});}catch(error){showFloatingPanels([],{historyMode:'replace'});notice(error.message);}});
  try{

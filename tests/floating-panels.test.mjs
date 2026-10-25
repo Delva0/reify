@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import {floatingLayer,registerFloatingPanel,raiseFloatingPanel} from '../src/scripts/floating-panels.js';
+import {floatingLayer,registerFloatingPanel,raiseFloatingPanel,initFloatingPanels} from '../src/scripts/floating-panels.js';
 const saved=new Map(),events=new Map(),windowEvents=new Map(),closed=[];
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
 class Panel{
- constructor(name,layer,persistent=false){this.name=name;this.dataset=layer===undefined?{}:{floatingLayer:String(layer)};this.persistent=persistent;this.hidden=false;this.tagName=name==='code'?'DIALOG':'DIV';this.open=true;}
+ constructor(name,layer,persistent=false){this.name=name;this.dataset=layer===undefined?{}:{floatingLayer:String(layer)};this.persistent=persistent;this.hidden=false;this.tagName=name==='code'?'DIALOG':'DIV';this.open=true;this.listeners=new Map();}
  closest(){return this.dataset.floatingLayer===undefined?null:this;}
  hasAttribute(name){return name==='data-floating-persistent'&&this.persistent;}
- addEventListener(){}
+ addEventListener(type,handler,options){this.listeners.set(type,{handler,options});}
 }
 const title=new Panel('title','title',true),code=new Panel('code',70),note=new Panel('note',85),editor=new Panel('editor',200),page=new Panel('page'),directory=new Panel('directory'),future=new Panel('future',300);
 const stack=[title,code,note,editor];
@@ -15,6 +15,8 @@ const click=(target,expected)=>{reset();events.get('pointerdown')({target});asse
 try{
  install('Element',Panel);install('document',{addEventListener:(type,fn)=>events.set(type,fn)});install('addEventListener',(type,fn)=>windowEvents.set(type,fn));
  for(const panel of stack)registerFloatingPanel(panel,()=>{closed.push(panel.name);panel.hidden=true;panel.open=false;});
+ initFloatingPanels();
+ for(const panel of stack)assert(!panel.listeners.has('wheel'),'panel registration leaves native scrolling on the browser path');
  assert.equal(floatingLayer(title),Infinity);assert.equal(floatingLayer(page),0);
  click(editor,[]);click(note,['editor']);click(code,['editor','note']);click(title,[]);click(page,['editor','note','code']);click(directory,['editor','note','code']);
  reset();const escape=()=>windowEvents.get('keydown')({key:'Escape',preventDefault(){},stopPropagation(){}});
@@ -34,5 +36,5 @@ try{
  closed.length=0;code.hidden=false;code.open=true;code.dataset.floatingDismiss='explicit';
  events.get('pointerdown')({target:page});assert.deepEqual(closed,[],'modal viewers also ignore background dismissal');
  escape();assert.deepEqual(closed,['code'],'explicit dismissal still supports Escape');
- console.log('Floating layers close only higher panels; page, title, Escape, and future panels follow one policy');
+ console.log('Floating layers close only higher panels and preserve native scrolling without wheel interception');
 }finally{for(const [name,descriptor]of saved)if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}

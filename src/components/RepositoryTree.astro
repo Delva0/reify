@@ -2,6 +2,7 @@
 import TreeNodes from './TreeNodes.astro';
 import {headingPages} from '../lib/article-pages.js';
 import {nestHeadings as nest} from '../lib/heading-tree.js';
+import {treeResizeHandle} from '../lib/tree-pane.js';
 const {navigation,current,headings,pageHref,site}=Astro.props;
 ---
 <aside class="repo-tree" aria-label="仓库与文章目录">
@@ -16,5 +17,5 @@ const {navigation,current,headings,pageHref,site}=Astro.props;
     </li>;
   })}</ul>
   </div>
-  <div class="tree-resize-handle" role="separator" aria-label="调整目录宽度" aria-orientation="vertical" aria-valuemin="128" aria-valuemax="480" aria-valuenow="220" tabindex="0"/>
+  <Fragment set:html={treeResizeHandle()}/>
 </aside>

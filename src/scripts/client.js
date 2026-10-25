@@ -12,6 +12,7 @@ import {initArticlePages} from './article-pages.js';
 import {initGitHubFiles} from './github-files.js';
 import {warmArticleResources} from './file-resources.js';
 import {hydrateReadingContent} from './reading-content.js';
+import {initDocumentViews} from './document-view.js';
 
 initSelection();
 initArticlePages();
@@ -26,7 +27,7 @@ initAnnotations();
 hydrateReadingContent();
 initGitHubFiles();
 initFpNavigation();
-if(document.querySelector('[data-file-document]'))import('./document-view.js').then(({initDocumentViews})=>initDocumentViews());
+initDocumentViews();
 warmArticleResources();
 const annotationButton=document.querySelector('.reader-annotation-mode');
 let annotationSelection;
