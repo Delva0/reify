@@ -10,7 +10,7 @@ function draw(range){
  for(const element of selectedMedia)if(!next.has(element))element.classList.remove('selection-media');
  for(const element of next)if(!selectedMedia.has(element))element.classList.add('selection-media');
  selectedMedia=next;
- const custom=Boolean(range&&(retained||media.length));
+ const custom=Boolean(range&&retained);
  if(custom)CSS.highlights.set('reader-selection',new Highlight(...ranges));else CSS.highlights.delete('reader-selection');
  document.documentElement.classList.toggle('selection-painted',custom);
 }

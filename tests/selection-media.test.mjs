@@ -58,26 +58,30 @@ test('dragging reuses media candidates, invalidates structural changes and relea
 });
 
 test('ordinary, retained and image-only selections share image outlines without changing native Selection',()=>{
- const originals=new Map(),install=(name,value)=>{originals.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});},events=new Map();let constructed=0;
+ const originals=new Map(),install=(name,value)=>{originals.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});},events=new Map(),classes=new Set();let constructed=0;
  const image=media('img',30,50),range=new SelectionRange(root([image]));let current=range;
  const selection={rangeCount:1,isCollapsed:false,getRangeAt:()=>current,removeAllRanges(){throw Error('native Selection must remain untouched');},addRange(){throw Error('native Selection must remain untouched');}};
  try{
   install('CSS',{highlights:new Map()});install('Highlight',class{constructor(...ranges){this.ranges=ranges;constructed++;}});
-  install('document',{documentElement:{classList:{toggle(){}}},addEventListener:(type,fn)=>events.set(type,fn)});install('getSelection',()=>selection);
-  initSelection();events.get('selectionchange')();const painted=CSS.highlights.get('reader-selection');
-  assert.deepEqual(painted.ranges.map(piece=>[piece.startOffset,piece.endOffset]),[[0,30],[50,100]]);
+  install('document',{documentElement:{classList:{toggle(name,on){if(on)classes.add(name);else classes.delete(name);}}},addEventListener:(type,fn)=>events.set(type,fn)});install('getSelection',()=>selection);
+  initSelection();events.get('selectionchange')();
+  assert.equal(CSS.highlights.size,0,'mixed text and media dragging also uses native paint');
+  assert(!classes.has('selection-painted'),'crossing an image does not switch the whole document painting mode');
   assert(image.classes.has('selection-media'),'an image included in the real selection has a visible outline');
-  const count=constructed;retainSelection(range);const retained=CSS.highlights.get('reader-selection');assert.deepEqual(retained.ranges.map(piece=>[piece.startOffset,piece.endOffset]),painted.ranges.map(piece=>[piece.startOffset,piece.endOffset]));assert.equal(constructed,count+1,'retaining a media selection preserves its exact text and media boundaries');
+  const count=constructed;retainSelection(range);const retained=CSS.highlights.get('reader-selection');assert.deepEqual(retained.ranges.map(piece=>[piece.startOffset,piece.endOffset]),[[0,30],[50,100]]);assert.equal(constructed,count+1,'retaining a media selection preserves its exact text and media boundaries');
   selection.isCollapsed=true;events.get('selectionchange')();assert.equal(CSS.highlights.get('reader-selection'),retained);assert.equal(selection.getRangeAt(0),range);
   assert(image.classes.has('selection-media'),'retained annotation ranges keep the image outline after editor focus changes');
   releaseSelection();assert.equal(CSS.highlights.size,0);assert(!image.classes.has('selection-media'));
   selection.isCollapsed=false;current=new SelectionRange(range.commonAncestorContainer,30,50);events.get('selectionchange')();
-  assert.deepEqual(CSS.highlights.get('reader-selection').ranges,[],'an image-only selection needs no text highlight');
+  assert.equal(CSS.highlights.size,0,'an image-only selection needs no text highlight');
   assert(image.classes.has('selection-media'),'an image-only range still has a visible outline');
   const other=media('img',70,90);current=new SelectionRange(root([image,other]),70,90);events.get('selectionchange')();
   assert(!image.classes.has('selection-media'));assert(other.classes.has('selection-media'),'changing the real range updates only the selected images');
   current=new SelectionRange(root(),0,20);events.get('selectionchange')();assert.equal(CSS.highlights.size,0,'returning to plain text immediately restores native painting');assert(!other.classes.has('selection-media'));
   current=new SelectionRange(root([other]),70,90);events.get('selectionchange')();assert(other.classes.has('selection-media'),'a later media selection still uses the shared outline and excluded paint ranges');
+  const before=constructed,parent=root([image,other]);
+  for(const end of [20,40,65,95,65,40,20]){current=new SelectionRange(parent,0,end);events.get('selectionchange')();assert.equal(CSS.highlights.size,0);assert(!classes.has('selection-painted'));}
+  assert.equal(constructed,before,'crossing media boundaries in either direction never rebuilds text highlights');
   selection.isCollapsed=true;events.get('selectionchange')();assert(!other.classes.has('selection-media'));assert.equal(CSS.highlights.size,0);
  }finally{for(const [name,descriptor]of originals)if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}
 });

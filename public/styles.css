@@ -288,7 +288,7 @@ a.text-note{text-decoration-style:solid;cursor:pointer}
 
 /* Reader annotation controls and local editor */
 .selection-painted::selection,.selection-painted ::selection{background:transparent}
-.selection-painted :is(img,video,audio,canvas,iframe,object,embed)::selection{background:transparent;color:transparent}
+:is(img,picture,video,audio,canvas,iframe,object,embed)::selection{background:transparent;color:transparent}
 .selection-media{outline:1px solid var(--selection);outline-offset:2px}
 .selection-painted :is(input,textarea,[contenteditable=true],[data-reader-annotation-ui])::selection,.selection-painted [data-reader-annotation-ui] ::selection{background:var(--selection)}
 ::highlight(reader-selection){background:var(--selection);color:var(--selection-ink)}
