@@ -1,5 +1,6 @@
 import {parse,serialize} from 'parse5';
 import {webDocumentBootstrap} from './web-document-frame.js';
+import {bindNativeClose} from './native-close.js';
 export {webDocumentKey} from './web-navigation.js';
 
 const attribute=(node,name)=>node.attrs?.find(item=>item.name===name)?.value;
@@ -87,6 +88,6 @@ export function webDocumentHtml(resource,{token,nonce,theme,engine,anchor,scroll
  head.childNodes.splice(1,0,element('style',{class:'darkreader','data-reify-theme-guard':''},'html[data-reify-theme=dark][data-reify-pending],html[data-reify-theme=dark][data-reify-pending] body,html[data-reify-theme=dark][data-reify-pending] body *{background-color:var(--reify-paper)!important;background-image:none!important;color:var(--reify-ink)!important;border-color:var(--reify-ink)!important}html[data-reify-theme=dark]{color-scheme:dark}'));
  if(!snapshot)head.childNodes.push(element('script',{src:engine,nonce,async:'','data-reify-theme-engine':''}));
  const configuration=JSON.stringify({token,theme,anchor,scrollbars,cached:Boolean(snapshot),externalLinks}).replace(/</g,'\\u003c');
- body.childNodes.push(element('script',{nonce},'('+webDocumentBootstrap.toString()+')('+configuration+');'));
+ body.childNodes.push(element('script',{nonce},'('+webDocumentBootstrap.toString()+')('+configuration+',('+bindNativeClose.toString()+'));'));
  return serialize(root);
 }

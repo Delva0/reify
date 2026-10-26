@@ -1,5 +1,5 @@
 // Executed inside the sandboxed preview, never in the blog document.
-export function webDocumentBootstrap({token,theme,anchor,scrollbars,cached=false,externalLinks=[]}){
+export function webDocumentBootstrap({token,theme,anchor,scrollbars,cached=false,externalLinks=[]},bindClose){
  const send=(type,detail={})=>parent.postMessage({type,token,...detail},'*');
  const external=new Set(externalLinks);
  let currentTheme=theme,generated=cached,cacheTimer,checkpoint,closed=false,lastSnapshot;
@@ -35,14 +35,19 @@ export function webDocumentBootstrap({token,theme,anchor,scrollbars,cached=false
   applyStyles();
  };
  try{
+  const closeRequests=bindClose?.(()=>send('reify:web-close'),{onPriority:pending=>send('reify:web-close-priority',{pending})});
   paint(currentTheme);
   document.querySelector('[data-reify-theme-engine]')?.addEventListener('load',()=>paint(currentTheme),{once:true});
   const style=document.createElement('style');style.textContent=scrollbars;style.className='darkreader';style.setAttribute('data-reify-scrollbars','');document.head.append(style);
   const observer=new MutationObserver(()=>{applyStyles();scheduleCache();});
   if(!cached)observer.observe(document.head,{childList:true,subtree:true,characterData:true});
   addEventListener('load',scheduleCache,{once:true});checkpoint=setTimeout(scheduleCache,1500);
-  addEventListener('pagehide',()=>{closed=true;clearTimeout(cacheTimer);clearTimeout(checkpoint);observer.disconnect();},{once:true});
-  addEventListener('message',event=>{if(event.source===parent&&event.data?.token===token&&event.data.type==='reify:web-theme'){currentTheme=event.data.theme;paint(currentTheme);}});
+  addEventListener('pagehide',()=>{closed=true;closeRequests?.dispose();clearTimeout(cacheTimer);clearTimeout(checkpoint);observer.disconnect();},{once:true});
+  addEventListener('message',event=>{
+   if(event.source!==parent||event.data?.token!==token)return;
+   if(event.data.type==='reify:web-theme'){currentTheme=event.data.theme;paint(currentTheme);}
+   if(event.data.type==='reify:web-close-priority')closeRequests?.setPriority(event.data.pending);
+  });
   document.addEventListener('click',event=>{
    const link=event.target.closest?.('a[href]');if(!link||event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||link.hasAttribute('download'))return;
    const url=new URL(link.href);if(!/^https?:$/.test(url.protocol))return;

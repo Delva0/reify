@@ -3,6 +3,7 @@ import test from 'node:test';
 import {parse} from 'parse5';
 import {prepareWebDocument,webDocumentHtml,webDocumentKey,webEmbeddingAllowed,webDocumentHasContent} from '../src/lib/web-document.js';
 import {webDocumentBootstrap} from '../src/lib/web-document-frame.js';
+import {bindNativeClose} from '../src/lib/native-close.js';
 
 const all=node=>[node,...(node.childNodes||[]).flatMap(all),...(node.content?[...all(node.content)]:[])];
 const attr=(node,name)=>node.attrs?.find(item=>item.name===name)?.value;
@@ -96,4 +97,29 @@ test('a cached dark HTML snapshot keeps inline colors and needs no theme engine'
  assert(!nodes.some(node=>attr(node,'data-reify-theme-engine')!==undefined));
  assert.equal(attr(nodes.find(node=>node.tagName==='p'),'style'),'color:red;--darkreader-inline-color:pink');
  assert(nodes.some(node=>attr(node,'class')?.includes('darkreader--inline')));
+});
+
+test('isolated HTML forwards platform closing and shares browser search priority',async()=>{
+ const originals=new Map(),install=(name,value)=>{originals.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
+ const listeners={},messages=[],watchers=[],parent={postMessage:message=>messages.push(message)};
+ class Watcher extends EventTarget{active=true;constructor(){super();watchers.push(this);}destroy(){this.active=false;}close(){if(this.active){this.active=false;this.dispatchEvent(new Event('close'));}}}
+ try{
+  install('parent',parent);install('CloseWatcher',Watcher);
+  install('document',{documentElement:{dataset:{},style:{setProperty(){}},removeAttribute(){}},head:{append(){}},createElement:()=>({setAttribute(){}}),querySelector:()=>null,querySelectorAll:()=>[],addEventListener:(name,handler)=>listeners[name]=handler});
+  install('addEventListener',(name,handler)=>listeners[name]=handler);install('removeEventListener',(name,handler)=>{if(listeners[name]===handler)delete listeners[name];});
+  install('setTimeout',()=>1);install('clearTimeout',()=>{});install('MutationObserver',class{observe(){}disconnect(){}});
+  webDocumentBootstrap({token:'ours',theme:{dark:false},scrollbars:''},bindNativeClose);
+  assert.equal(watchers.filter(w=>w.active).length,1,'the focused frame owns a platform close watcher');
+  const key=(type,key,options={})=>listeners[type]({key,...options,preventDefault(){throw Error('native browser keys stay unclaimed');}});
+  key('keydown','f',{ctrlKey:true});
+  assert.equal(messages.at(-1).type,'reify:web-close-priority');assert.equal(messages.at(-1).pending,true);assert(!watchers.some(w=>w.active));
+  key('keydown','Escape');assert(!messages.some(message=>message.type==='reify:web-close'),'find dismissal never closes an FP');
+  key('keyup','Escape');assert.equal(messages.at(-1).pending,false);assert.equal(watchers.filter(w=>w.active).length,1);
+  watchers.at(-1).close();await Promise.resolve();
+  assert.equal(messages.filter(message=>message.type==='reify:web-close').length,1,'one native request forwards exactly one close to the shared FP stack');
+  listeners.message({source:{},data:{type:'reify:web-close-priority',token:'ours',pending:true}});assert(watchers.at(-1).active,'other windows cannot change close handling');
+  listeners.message({source:parent,data:{type:'reify:web-close-priority',token:'wrong',pending:true}});assert(watchers.at(-1).active,'other instances cannot change close handling');
+  listeners.message({source:parent,data:{type:'reify:web-close-priority',token:'ours',pending:true}});assert(!watchers.some(w=>w.active),'parent search priority also suspends the frame watcher');
+  listeners.pagehide();assert(!listeners.keydown&&!listeners.keyup,'disposing the document removes keyboard listeners');
+ }finally{for(const [name,descriptor]of originals)if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}
 });

@@ -24,6 +24,8 @@ export default defineReifyConfig({root:new URL('.',import.meta.url)});
 
 Its `src/content.config.mjs` exports `collections` from `reify/content`. `reify.config.json` selects `content`, `public`, standalone `pages`, and optional `repositories`. `components` registers application-owned MDX components by name and file path; `scripts` registers application client entrypoints. Topic-specific formula aliases and file maps are also supplied by the application.
 
+A standalone page can set `group` to a display label to collect its H1 pages under one collapsible navigation branch. Without `group`, its H1 pages remain direct navigation entries.
+
 ```json
 {
   "title":"My notebook",

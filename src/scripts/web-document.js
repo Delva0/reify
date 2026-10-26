@@ -2,6 +2,7 @@ import {prepareWebDocument,webDocumentKey,webEmbeddingAllowed,webDocumentHtml,we
 import scrollbarStyle from '../../public/scrollbars.css?raw';
 import {createWebThemeCache,webThemeKey} from '../lib/web-theme-cache.js';
 import {loadWebDocumentIndex,externalWebLinks} from './web-document-index.js';
+import {requestFloatingClose,setFloatingClosePriority,watchFloatingClosePriority} from './floating-panels.js';
 
 const resources=new Map(),themes=createWebThemeCache();
 export async function readWebDocument(href){
@@ -22,14 +23,18 @@ export async function readWebDocument(href){
 export function mountWebDocument(frame,resource,{href=resource.url,onLink}={}){
  const token=crypto.randomUUID(),nonce=crypto.randomUUID().replaceAll('-',''),url=new URL(href);
  const theme=()=>{const root=document.documentElement,style=getComputedStyle(root);return {dark:root.dataset.theme==='dark',paper:style.getPropertyValue('--paper').trim(),ink:style.getPropertyValue('--ink').trim(),scroll:style.getPropertyValue('--scroll-thumb').trim()};};
- let done,closed=false;const ready=new Promise(resolve=>{done=resolve;});
+ let done,closed=false,pendingClose=false;const ready=new Promise(resolve=>{done=resolve;});
+ const sendClosePriority=()=>frame.contentWindow?.postMessage({type:'reify:web-close-priority',token,pending:pendingClose},'*');
+ const unwatchClose=watchFloatingClosePriority(pending=>{pendingClose=pending;sendClosePriority();});
  const reveal=()=>{if(closed)return;frame.style.visibility='';clearTimeout(watchdog);done();};
  const watchdog=setTimeout(reveal,1500);
  const listener=event=>{
   if(event.source!==frame.contentWindow||event.data?.token!==token)return;
+  if(event.data.type==='reify:web-close')requestFloatingClose(new Event('close'));
+  if(event.data.type==='reify:web-close-priority'&&typeof event.data.pending==='boolean')setFloatingClosePriority(event.data.pending);
   if(event.data.type==='reify:web-link')try{const target=new URL(event.data.href);if(/^https?:$/.test(target.protocol))onLink?.(target.href);}catch{}
   if(event.data.type==='reify:web-cache'&&typeof event.data.html==='string')webThemeKey(resource,event.data.theme).then(key=>themes.put(key,event.data.html));
-  if(event.data.type==='reify:web-ready'||event.data.type==='reify:web-error')reveal();
+  if(event.data.type==='reify:web-ready'||event.data.type==='reify:web-error'){sendClosePriority();reveal();}
  };
  addEventListener('message',listener);
  frame.addEventListener('load',reveal);
@@ -41,6 +46,6 @@ export function mountWebDocument(frame,resource,{href=resource.url,onLink}={}){
   if(closed)return;const current=theme();if(!current.dark||['paper','ink','scroll'].some(key=>current[key]!==state[key]))snapshot=null;
   frame.srcdoc=webDocumentHtml(resource,{token,nonce,theme:current,engine:new URL('/assets/darkreader/darkreader.js',location.href).href,anchor:url.hash.slice(1),scrollbars:scrollbarStyle,snapshot,externalLinks:externalWebLinks()});
  };render();
- const dispose=()=>{if(closed)return;closed=true;clearTimeout(watchdog);observer.disconnect();removeEventListener('message',listener);frame.removeEventListener('load',reveal);frame.removeAttribute('srcdoc');done();};
+ const dispose=()=>{if(closed)return;closed=true;unwatchClose();clearTimeout(watchdog);observer.disconnect();removeEventListener('message',listener);frame.removeEventListener('load',reveal);frame.removeAttribute('srcdoc');done();};
  return {ready,dispose};
 }
