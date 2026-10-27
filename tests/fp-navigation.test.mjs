@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import {fpHref,parseFpUrl,fpTypes} from '../src/lib/fp-links.js';
-import {registerFpType,showFloatingPanels,initFpNavigation,floatingPanelState,appendFpState} from '../src/scripts/fp-navigation.js';
-import {fpSessionKey} from '../src/lib/fp-session.js';
+import {fpHref,parseFpUrl,fpTypes} from '../dist/lib/fp-links.js';
+import {registerFpType,showFloatingPanels,initFpNavigation,floatingPanelState,appendFpState} from '../dist/scripts/fp-navigation.js';
+import {fpSessionKey} from '../dist/lib/fp-session.js';
 
 const descriptors=new Map(),install=(key,value)=>{descriptors.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});};
 const a={type:'code',props:{file:'src/a.cpp',ranges:[{from:10,to:20}]}},b={type:'code',props:{file:'src/b.cpp',ranges:[]}},storage=new Map(),listeners=new Map(),opened=[],changes=[];

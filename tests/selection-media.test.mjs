@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {selectionPaint,selectionPaintRanges,resetSelectionPaint} from '../src/lib/selection-paint.js';
-import {initSelection,retainSelection,releaseSelection} from '../src/lib/selection.js';
+import {selectionPaint,selectionPaintRanges,resetSelectionPaint} from '../dist/lib/selection-paint.js';
+import {initSelection,retainSelection,releaseSelection} from '../dist/lib/selection.js';
 
 const media=(tag,start,end,parent=null)=>{const classes=new Set();return {tag,start,end,parent,classes,classList:{add:name=>classes.add(name),remove:name=>classes.delete(name)},matches:selector=>selector.split(',').includes(tag),contains(node){for(let current=node;current;current=current.parent)if(current===this)return true;return false;}};};
 const root=(elements=[])=>({nodeType:1,matches:()=>false,closest:()=>null,querySelectorAll:selector=>elements.filter(element=>element.matches(selector))});

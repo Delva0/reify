@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createWebThemeCache,webThemeKey} from '../src/lib/web-theme-cache.js';
+import {createWebThemeCache,webThemeKey} from '../dist/lib/web-theme-cache.js';
 
 test('dark snapshots invalidate with source CSS, address or palette changes',async()=>{
  const resource={url:'https://source.test/a',html:'<style>p{color:red}</style><p>A</p>'},theme={paper:'#161616',ink:'#ddd',scroll:'#555'};

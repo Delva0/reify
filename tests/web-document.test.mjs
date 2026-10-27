@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {parse} from 'parse5';
-import {prepareWebDocument,webDocumentHtml,webDocumentKey,webEmbeddingAllowed,webDocumentHasContent} from '../src/lib/web-document.js';
-import {webDocumentBootstrap} from '../src/lib/web-document-frame.js';
-import {bindNativeClose} from '../src/lib/native-close.js';
+import {prepareWebDocument,webDocumentHtml,webDocumentKey,webEmbeddingAllowed,webDocumentHasContent} from '../dist/lib/web-document.js';
+import {webDocumentBootstrap} from '../dist/lib/web-document-frame.js';
+import {bindNativeClose} from '../dist/lib/native-close.js';
 
 const all=node=>[node,...(node.childNodes||[]).flatMap(all),...(node.content?[...all(node.content)]:[])];
 const attr=(node,name)=>node.attrs?.find(item=>item.name===name)?.value;

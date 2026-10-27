@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {initAnnotations} from '../src/scripts/annotations.js';
-import {transientSession,nodeReference} from '../src/lib/transient-session.js';
+import {initAnnotations} from '../dist/scripts/annotations.js';
+import {transientSession,nodeReference} from '../dist/lib/transient-session.js';
 
 const saved=new Map(),storage=new Map(),events=new Map();
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};

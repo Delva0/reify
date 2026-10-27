@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createPageReadingStore,pageReadingScope,pageReadingTarget} from '../src/scripts/page-reading.js';
+import {createPageReadingStore,pageReadingScope,pageReadingTarget} from '../dist/scripts/page-reading.js';
 
 test('main reading cache isolates H1 pages and versions, batches writes and resumes after refresh',()=>{
  const storage=new Map(),timers=new Map();let timer=0,writes=0;
@@ -34,12 +34,12 @@ test('page navigation restores before capturing zero and preserves same-page his
   install('requestAnimationFrame',fn=>{frames.set(++frame,fn);return frame;});install('cancelAnimationFrame',id=>frames.delete(id));
   install('setTimeout',fn=>{timers.set(++timer,fn);return timer;});install('clearTimeout',id=>timers.delete(id));
   const flush=()=>{const pending=[...frames.values()];frames.clear();for(const fn of pending)fn();};
-  const first=await import('../src/scripts/page-navigation.js?reading-initial');first.initPageNavigation();assert.equal(history.scrollRestoration,'manual');assert.equal(history.state.reifyNavigation.scroll.y,700,'initialization does not replace an existing history offset with zero');flush();assert.equal(scrollY,700);assert.equal(anchors,0);assert.equal(writes,0);
+  const first=await import('../dist/scripts/page-navigation.js?reading-initial');first.initPageNavigation();assert.equal(history.scrollRestoration,'manual');assert.equal(history.state.reifyNavigation.scroll.y,700,'initialization does not replace an existing history offset with zero');flush();assert.equal(scrollY,700);assert.equal(anchors,0);assert.equal(writes,0);
   for(let y=710;y<810;y++){globalThis.scrollY=y;windowEvents.get('scroll')();}assert.equal(frames.size,1);flush();assert.equal(writes,0);assert.equal(history.state.reifyNavigation.scroll.y,809);assert.equal(history.state.other,'preserved');assert.deepEqual(history.state.reifyFp,{ids:['existing-fp']});
   windowEvents.get('pagehide')();assert.equal(writes,1);assert.equal(JSON.parse(storage.get('reading-pages-v1')).entries[0][1].y,809);
-  globalThis.scrollY=0;const refreshed=await import('../src/scripts/page-navigation.js?reading-refreshed');refreshed.initPageNavigation();flush();assert.equal(scrollY,809,'refresh resumes the last main-document reading position');
+  globalThis.scrollY=0;const refreshed=await import('../dist/scripts/page-navigation.js?reading-refreshed');refreshed.initPageNavigation();flush();assert.equal(scrollY,809,'refresh resumes the last main-document reading position');
   const earlier={...history.state,reifyNavigation:{scope,scroll:{x:0,y:250}}};history.state=earlier;globalThis.location=new URL('https://wiki.test/article.html#earlier');windowEvents.get('popstate')({state:earlier});flush();assert.equal(scrollY,250,'Back/Forward within one article also restores its per-entry position');
   globalThis.location=new URL('https://wiki.test/article.html#native');windowEvents.get('popstate')({state:null});flush();assert.equal(scrollY,99,'a native fragment entry without a saved scroll snapshot still follows its anchor');
-  globalThis.performance={getEntriesByType:()=>[{type:'navigate'}]};globalThis.location=new URL('https://wiki.test/article.html#explicit');const anchor=await import('../src/scripts/page-navigation.js?reading-new-anchor');anchor.initPageNavigation();flush();assert.equal(scrollY,99);assert.equal(anchors,2,'a newly opened explicit anchor remains authoritative');windowEvents.get('pagehide')();
+  globalThis.performance={getEntriesByType:()=>[{type:'navigate'}]};globalThis.location=new URL('https://wiki.test/article.html#explicit');const anchor=await import('../dist/scripts/page-navigation.js?reading-new-anchor');anchor.initPageNavigation();flush();assert.equal(scrollY,99);assert.equal(anchors,2,'a newly opened explicit anchor remains authoritative');windowEvents.get('pagehide')();
  }finally{for(const [name,descriptor]of saved)if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}
 });

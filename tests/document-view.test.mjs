@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import {mountDocumentView,unmountDocumentView,documentRangeTarget,documentViewState,restoreDocumentViewState,registerDocumentPageLoader,cloneDocumentView,navigateDocumentAnchor} from '../src/scripts/document-view.js';
-import {articleCodeBlock} from '../src/scripts/article-pages.js';
-import {positionArticleDocument} from '../src/scripts/link-panels.js';
+import {mountDocumentView,unmountDocumentView,documentRangeTarget,documentViewState,restoreDocumentViewState,registerDocumentPageLoader,cloneDocumentView,navigateDocumentAnchor} from '../dist/scripts/document-view.js';
+import {articleCodeBlock} from '../dist/scripts/article-pages.js';
+import {positionArticleDocument} from '../dist/scripts/link-panels.js';
 
 const saved=new Map(),stats={sourceQueries:0,lineReads:0,parsed:0},events=[],observers=[],resizeHandlers=new Set(),widthStyles=new Map(),handleListeners=new Map();
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};

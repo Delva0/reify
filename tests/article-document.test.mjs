@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {parse,serialize} from 'parse5';
-import {readArticleDocument} from '../src/scripts/article-document.js';
-import {articlePageCache} from '../src/lib/page-cache.js';
+import {readArticleDocument} from '../dist/scripts/article-document.js';
+import {articlePageCache} from '../dist/lib/page-cache.js';
 
 const saved=new Map(),install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
 const attr=(node,name)=>node.attrs?.find(item=>item.name===name)?.value;

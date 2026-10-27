@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {readSiteConfig,readFacts} from '../src/site-config.mjs';
-import {createMathMacros,mathMacros} from '../src/math-style.mjs';
+import {readSiteConfig,readFacts} from '../dist/site-config.js';
+import {createMathMacros,mathMacros} from '../dist/math-style.js';
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'reify-config-'));
 try{
  fs.writeFileSync(path.join(root,'reify.config.json'),JSON.stringify({title:'Independent notebook',pages:[{id:'start',source:'start.mdx',page:'index.html'}]}));

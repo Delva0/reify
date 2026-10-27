@@ -1,0 +1,2 @@
+export type HeadingNode<T> = T & {children: HeadingNode<T>[]};
+export function nestHeadings<T extends {depth: number}>(items: readonly T[]): HeadingNode<T>[]{const roots: HeadingNode<T>[]=[],stack: HeadingNode<T>[]=[];for(const item of items){const node: HeadingNode<T>={...item,children:[]};while(stack.length&&stack.at(-1)!.depth>=node.depth)stack.pop();(stack.at(-1)?.children||roots).push(node);stack.push(node);}return roots;}

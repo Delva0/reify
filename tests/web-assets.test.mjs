@@ -14,11 +14,11 @@ test('static HTML assets cross the prerender boundary, retain requested URLs and
    const response=new Response(shell?'<html><body><script>redirect()</script></body></html>':'<!doctype html><title>Guide</title><h1>Guide</h1><p>Published content</p><a href="https://social.example/blocked#footer">Social</a><a href="https://social.example/unknown">Unknown</a><a href="https://social.example/allowed">Allowed</a>',{headers:{'Content-Type':'text/html',...(blocked?{'X-Frame-Options':'DENY'}:{})}});
    Object.defineProperty(response,'url',{value:url.endsWith('/guide')?'https://source.example/guide-v2':url});return response;
   };
-  const producer=await import('../src/build/web-documents.mjs?producer');
+  const producer=await import('../dist/build/web-documents.js?producer');
   await producer.prepareWebDocuments(['https://source.example/guide#part','https://source.example/shell','https://source.example/blocked'],'/index.html');
   await producer.prepareWebDocuments(['https://source.example/stale'],'/removed.html');
   const output=path.join(root,'dist');await fs.mkdir(output);await fs.writeFile(path.join(output,'index.html'),'<!doctype html><title>Blog</title>');
-  const publisher=await import('../src/build/web-documents.mjs?publisher');
+  const publisher=await import('../dist/build/web-documents.js?publisher');
   await publisher.copyWebDocuments(pathToFileURL(output+path.sep));
   const index=JSON.parse(await fs.readFile(path.join(output,'data/web-pages/index.json'),'utf8'));
   assert.deepEqual(Object.keys(index.pages),['https://source.example/guide']);
@@ -30,7 +30,7 @@ test('static HTML assets cross the prerender boundary, retain requested URLs and
   assert.equal(document.url,'https://source.example/guide-v2');assert(document.html.includes('Published content'));
   assert((await fs.stat(path.join(output,'assets/darkreader/darkreader.js'))).size>100000);
   assert((await fs.readFile(path.join(output,'assets/darkreader/LICENSE'),'utf8')).includes('MIT'));
-  const cached=await import('../src/build/web-documents.mjs?cached'),before=requested.length;
+  const cached=await import('../dist/build/web-documents.js?cached'),before=requested.length;
   await cached.prepareWebDocuments(['https://source.example/guide'],'/index.html');assert.equal(requested.length,before,'fresh snapshots reuse their styles and HTML without another network request');
  }finally{
   globalThis.fetch=fetcher;if(oldRoot===undefined)delete process.env.REIFY_PROJECT_ROOT;else process.env.REIFY_PROJECT_ROOT=oldRoot;

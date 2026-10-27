@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {registerTreeBranch,registerTreeRoot,toggleTreeBranch,commitTreeChange,registerPersistentTreeBranches} from '../src/scripts/tree-branches.js';
+import {registerTreeBranch,registerTreeRoot,toggleTreeBranch,commitTreeChange,registerPersistentTreeBranches} from '../dist/scripts/tree-branches.js';
 
 function folder(name,expanded=false,children=[]){
  const list={children,hidden:!expanded},path={value:expanded?'M2 6h8':'M2 6h8M6 2v8',setAttribute(_name,value){this.value=value;}};
@@ -75,7 +75,7 @@ test('repository and heading branches persist across refresh, article changes an
   toggleTreeBranch(repository.button,{button:0,ctrlKey:true});assert(!expanded(first)&&!expanded(second));
   const patchedFirst=branch('heading:asc-devkit.html#intro',true),patchedSecond=branch('heading:asc-devkit-page-2.html#example',true),patchedRepository=branch('repository:owner/asc-devkit',false,[patchedFirst,patchedSecond]);buttons=[patchedRepository.button,patchedFirst.button,patchedSecond.button];
   registerPersistentTreeBranches(root,{key});assert(expanded(patchedRepository),'an inactive repository remains expanded when navigating to another article');assert(!expanded(patchedFirst)&&!expanded(patchedSecond),'new heading DOM uses stable full-href preferences rather than SSR defaults');assert(patchedFirst.list.hidden&&patchedSecond.list.hidden);
-  const refreshed=await import('../src/scripts/tree-branches.js?persistent-refresh');patchedRepository.button.expanded='false';patchedFirst.button.expanded='true';refreshed.registerPersistentTreeBranches(root,{key});assert(expanded(patchedRepository));assert(!expanded(patchedFirst),'a new runtime restores saved state after F5');
+  const refreshed=await import('../dist/scripts/tree-branches.js?persistent-refresh');patchedRepository.button.expanded='false';patchedFirst.button.expanded='true';refreshed.registerPersistentTreeBranches(root,{key});assert(expanded(patchedRepository));assert(!expanded(patchedFirst),'a new runtime restores saved state after F5');
   const stored=JSON.parse(saved.get(key));assert.deepEqual(new Map(stored.entries).get('repository:owner/asc-devkit'),true);assert.equal(stored.entries.length,3,'changing article context does not create another preference namespace');
  }finally{if(original)Object.defineProperty(globalThis,'localStorage',original);else delete globalThis.localStorage;}
 });

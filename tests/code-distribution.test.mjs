@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {indexTree} from '../src/lib/github-files.js';
-import {codeDistribution,share,compactLines,distributionTip} from '../src/lib/code-distribution.js';
+import {indexTree} from '../dist/lib/github-files.js';
+import {codeDistribution,share,compactLines,distributionTip} from '../dist/lib/code-distribution.js';
 const snapshot={repository:'owner/repo',commit:'fixed',entries:[
  {path:'root.cpp',type:'blob',language:'C++',lines:10},
  {path:'src',type:'tree'},

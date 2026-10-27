@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {normalizeLineRanges,parseLineRanges,formatLineRanges,codeHref,internalCodeTargets} from '../src/lib/code-links.js';
-import {parseFpUrl} from '../src/lib/fp-links.js';
+import {normalizeLineRanges,parseLineRanges,formatLineRanges,codeHref,internalCodeTargets} from '../dist/lib/code-links.js';
+import {parseFpUrl} from '../dist/lib/fp-links.js';
 const parseCodeUrl=(href,base,options)=>parseFpUrl(href,base,options)?.[0]?.props??null;
 
 const base='https://example.test/backend-version.html#mdx-2';

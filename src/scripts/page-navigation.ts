@@ -1,0 +1,115 @@
+import {errorMessage} from '../lib/data-types.js';
+import {eventElement} from './event-target.js';
+import {articlePageCache} from '../lib/page-cache.js';
+import {canonicalArticlePath} from '../lib/article-pages.js';
+import {parseFpUrl} from '../lib/fp-links.js';
+import {patchChildren,patchTree} from '../lib/page-dom.js';
+import {refreshNavigation,disposeNavigationNode} from './navigation.js';
+import {resetArticlePages} from './article-pages.js';
+import {refreshArticleResources,warmArticleResources} from './file-resources.js';
+import {hydrateReadingContent} from './reading-content.js';
+import {initDocumentViews,unmountDocumentView} from './document-view.js';
+import {initGitHubFiles,disposeGitHubFiles} from './github-files.js';
+import {initTreeWidth,disposeTreeWidth} from './tree-width.js';
+import {disposeSidebar} from './sidebars.js';
+import {notice} from '../lib/dom.js';
+import {createPageReadingStore,pageReadingScope,pageReadingTarget} from './page-reading.js';
+
+let initialized=false,currentHref: string | undefined,request: AbortController | undefined,revision=0,navigating=false,scrollFrame: number | undefined,restoreFrame: number | undefined,restoringScroll=false,pageReadings: ReturnType<typeof createPageReadingStore> | undefined;
+const readingStore=()=>pageReadings??=createPageReadingStore();
+const loadedModules=new Set(),metadata=['data-repository','data-repository-name','data-version','data-commit','data-mdx-file','data-source-url','data-article-page'];
+export function pageLinkTarget(link: HTMLAnchorElement | null | undefined,href: string){
+ if(!link||link.hasAttribute('download')||link.target&&link.target!=='_self'||link.closest('[data-file-document]')||link.closest('[data-floating-panel]')&&!link.closest('.repo-header'))return null;
+ const raw=link.getAttribute('href');if(!raw||raw.startsWith('#'))return null;
+ let url;try{url=new URL(raw,href);if(parseFpUrl(raw,href))return null;}catch{return null;}
+ const current=new URL(href);
+ if(!['http:','https:'].includes(url.protocol)||url.origin!==current.origin||canonicalArticlePath(url.pathname)===canonicalArticlePath(current.pathname)||!/(?:\/|\.html|\/[^/.]+)$/.test(url.pathname))return null;
+ return url;
+}
+const position=()=>({x:scrollX,y:scrollY});
+function rememberScroll(write=true){
+ if(!currentHref||restoringScroll)return;const scroll=position(),scope=pageReadingScope(currentHref,document.body.dataset);readingStore().remember(scope,scroll);
+ if(write)history.replaceState({...history.state,reifyNavigation:{scope,scroll}},'',location.href);
+}
+const savedScroll=(url: URL,reason: string,state: unknown)=>{const scope=pageReadingScope(url.href,document.body.dataset);return pageReadingTarget({url,scope,reason,state,stored:readingStore().read(scope)});};
+const scheduleScroll=()=>{if(navigating||restoringScroll||scrollFrame!==undefined)return;scrollFrame=requestAnimationFrame(()=>{scrollFrame=undefined;if(!navigating)rememberScroll();});};
+function restoreScrollFrame(url: URL,saved: {x: number; y: number} | null){
+ if(restoreFrame!==undefined)cancelAnimationFrame(restoreFrame);restoringScroll=true;
+ restoreFrame=requestAnimationFrame(()=>{restoreFrame=undefined;applyScroll(url,saved);currentHref=location.href;restoringScroll=false;rememberScroll();});
+}
+function payload(source: Document,id: string){
+ const incoming=source.getElementById(id),old=document.getElementById(id);
+ if(!incoming){old?.remove();return;}if(old)old.textContent=incoming.textContent;else document.head.append(document.importNode(incoming,true));
+}
+function replaceFiles(source: Document){
+ const old=document.querySelector<HTMLElement>('.github-files'),incoming=source.querySelector<HTMLElement>('.github-files');
+ if(old&&incoming&&old.dataset.treeUrl===incoming.dataset.treeUrl)return;
+ if(old){disposeGitHubFiles(old);disposeNavigationNode(old);disposeTreeWidth(old);if(!incoming){old.remove();disposeSidebar('files');return;}}
+ if(!incoming)return;
+ if(old){if(incoming.dataset.treeUrl===undefined)delete old.dataset.treeUrl;else old.dataset.treeUrl=incoming.dataset.treeUrl;old.replaceChildren(...[...incoming.childNodes].map(node=>document.importNode(node,true)));}
+ else document.querySelector('main.reading-viewport')?.before(document.importNode(incoming,true));
+}
+async function loadPageAssets(source: Document,url: string){
+ for(const style of source.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]')){
+  const href=new URL(style.href,url).href;
+  if(![...document.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]')].some(node=>node.href===href)){const link=document.importNode(style,true);link.href=href;document.head.append(link);}
+ }
+ for(const incoming of source.querySelectorAll<HTMLScriptElement>('script[type=module][src]')){
+  const src=new URL(incoming.src,url).href;if(loadedModules.has(src))continue;loadedModules.add(src);
+  await new Promise<void>((resolve,reject)=>{const script=document.createElement('script');script.type='module';script.src=src;script.onload=()=>resolve();script.onerror=()=>{loadedModules.delete(src);reject(Error('页面脚本读取失败'));};document.head.append(script);});
+ }
+}
+function applyScroll(url: URL,saved: {x: number; y: number} | null){
+ if(saved){scrollTo(saved.x,saved.y);return;}
+ let id;try{id=decodeURIComponent(url.hash.slice(1));}catch{}
+ const anchor=id&&document.getElementById(id);if(anchor)anchor.scrollIntoView();else scrollTo(0,0);
+}
+export async function navigatePage(href: string,{replace=false,reason='link',state}: {replace?: boolean; reason?: string; state?: unknown}={}){
+ const target=new URL(href,location.href),from=currentHref||location.href;
+ if(target.origin!==location.origin){location.assign(target.href);return false;}
+ if(canonicalArticlePath(target.pathname)===canonicalArticlePath(new URL(from).pathname))return false;
+ const ticket=++revision;request?.abort();request=new AbortController();const signal=request.signal;
+ let beforeStarted=false,committed=false,afterSent=false;
+ rememberScroll(reason!=='popstate');if(restoreFrame!==undefined)cancelAnimationFrame(restoreFrame);restoreFrame=undefined;restoringScroll=false;readingStore().flush();navigating=true;
+ try{
+  const html=await articlePageCache.read(target.href,{signal});if(signal.aborted||ticket!==revision)return false;
+  const source=new DOMParser().parseFromString(html,'text/html'),main=source.querySelector('main.reading-viewport');
+  if(!main||!source.getElementById('article-pages')){location.assign(target.href);return false;}
+  const waiting: Promise<unknown>[]=[],detail={from,to:target.href,reason,waitUntil:(promise: PromiseLike<unknown>)=>waiting.push(Promise.resolve(promise))};
+  beforeStarted=true;document.dispatchEvent(new CustomEvent('reify:before-navigate',{detail}));await Promise.all(waiting);
+  if(signal.aborted||ticket!==revision)return false;
+  const current=document.querySelector<HTMLElement>('main.reading-viewport');if(!current)throw Error('页面正文不存在');
+  disposeNavigationNode(current);for(const view of current.querySelectorAll<HTMLElement>('[data-file-document]'))unmountDocumentView(view);
+  if(reason!=='popstate')history[replace?'replaceState':'pushState']({...history.state,reifyNavigation:{scope:pageReadingScope(target.href,source.body.dataset),scroll:{x:0,y:0}}},'',target.href);
+  committed=true;
+  for(const name of metadata){const value=source.body.getAttribute(name);if(value===null)document.body.removeAttribute(name);else document.body.setAttribute(name,value);}
+  document.title=source.title;
+  const header=document.querySelector('.repo-header'),nextHeader=source.querySelector('.repo-header');if(header&&nextHeader)patchChildren(header,nextHeader,{onRemove:disposeNavigationNode,preserve:node=>node instanceof Element&&node.matches('.symmetric-button,.tree-toggle,.github-files-toggle,.reader-annotation-control,.theme-toggle')});
+  const tree=document.querySelector('.repo-tree .repo-tree-content'),nextTree=source.querySelector('.repo-tree .repo-tree-content');if(tree&&nextTree)patchTree(tree,nextTree,{onRemove:disposeNavigationNode});
+  replaceFiles(source);current.replaceChildren(...[...main.childNodes].map(node=>document.importNode(node,true)));
+  for(const id of ['article-pages','document-options','file-resources'])payload(source,id);
+  resetArticlePages();refreshArticleResources();refreshNavigation();initGitHubFiles();initTreeWidth();hydrateReadingContent(current);initDocumentViews();
+  const assets=loadPageAssets(source,target.href).catch(error=>{if(ticket===revision)notice(errorMessage(error));});
+  applyScroll(target,savedScroll(target,reason,reason==='popstate'?state:null));
+  afterSent=true;document.dispatchEvent(new CustomEvent('reify:after-navigate',{detail:{from,to:target.href,reason}}));
+  currentHref=location.href;rememberScroll();warmArticleResources();await assets;if(ticket===revision)document.dispatchEvent(new Event('astro:page-load'));return true;
+ }catch(error){if(!signal.aborted&&ticket===revision){notice(errorMessage(error)||'页面暂时无法读取');if(committed||reason==='popstate')location.assign(target.href);else if(beforeStarted&&!afterSent)document.dispatchEvent(new CustomEvent('reify:after-navigate',{detail:{from,to:from,reason,cancelled:true,error}}));}return false;}
+ finally{if(ticket===revision)navigating=false;}
+}
+export function initPageNavigation(){
+ if(initialized)return;initialized=true;currentHref=location.href;
+ articlePageCache.remember(currentHref,'<!doctype html>'+document.documentElement.outerHTML);
+ for(const script of document.querySelectorAll<HTMLScriptElement>('script[type=module][src]'))loadedModules.add(script.src);
+ history.scrollRestoration='manual';const initial=new URL(location.href),timing=globalThis.performance?.getEntriesByType?.('navigation')[0],reason=timing&&'type'in timing&&typeof timing.type==='string'?timing.type:'navigate';restoreScrollFrame(initial,savedScroll(initial,reason,history.state));
+ document.addEventListener('click',event=>{
+  if(event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+  const target=pageLinkTarget(eventElement(event)?.closest<HTMLAnchorElement>('a[href]'),location.href);if(!target)return;
+  event.preventDefault();navigatePage(target.href);
+ });
+ document.addEventListener('reify:navigate',event=>navigatePage(event.detail.href,{replace:event.detail.replace}));
+ document.addEventListener('fpchange',()=>{if(!navigating)currentHref=location.href;});
+ addEventListener('hashchange',()=>{if(!navigating){currentHref=location.href;scheduleScroll();}});
+ addEventListener('scroll',scheduleScroll,{passive:true});
+ const flushScroll=()=>{if(!navigating)rememberScroll();readingStore().flush();};addEventListener('pagehide',flushScroll);addEventListener('beforeunload',flushScroll);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushScroll();});
+ addEventListener('popstate',event=>{const target=new URL(location.href);if(canonicalArticlePath(target.pathname)===canonicalArticlePath(new URL(currentHref||location.href).pathname)){currentHref=location.href;restoreScrollFrame(target,savedScroll(target,event.state?.reifyNavigation?'popstate':'link',event.state));return;}navigatePage(target.href,{reason:'popstate',state:event.state});});
+}

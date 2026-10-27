@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {bindPanelWheel} from '../src/scripts/panel-wheel.js';
+import {bindPanelWheel} from '../dist/scripts/panel-wheel.js';
 const saved=new Map(),install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,configurable:true,writable:true});};
 let pending,reads=0,resizes=0,cancelled=0,prevented=0;const handlers=new Map();
 try{

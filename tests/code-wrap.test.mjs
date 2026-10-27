@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {syncCodeWrap,toggleCodeWrap} from '../src/scripts/code-controls.js';
-import {readingPosition} from '../src/lib/reading-position.js';
+import {syncCodeWrap,toggleCodeWrap} from '../dist/scripts/code-controls.js';
+import {readingPosition} from '../dist/lib/reading-position.js';
 
 test('one wrap control switches the active rendered/source view with independent state and a shared reading anchor',()=>{
  const saved=new Map(),install=(key,value)=>{saved.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});};

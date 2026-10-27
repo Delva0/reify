@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {fileBrowserStateKey,readFileBrowserState,saveFileBrowserState} from '../src/lib/file-browser-state.js';
+import {fileBrowserStateKey,readFileBrowserState,saveFileBrowserState} from '../dist/lib/file-browser-state.js';
 const values=new Map(),storage={getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value)};
 const key=fileBrowserStateKey('owner/repo','first');
 saveFileBrowserState(key,{expanded:new Set(['src','src/nested']),suffix:'.cpp',file:'src/a.cpp',lines:'1-3,7'},storage);

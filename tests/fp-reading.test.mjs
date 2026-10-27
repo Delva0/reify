@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {fpHref,fpTypes} from '../src/lib/fp-links.js';
-import {readingSnapshot,rememberFpReading,fpReadingLimit,fpSessionKey} from '../src/lib/fp-session.js';
+import {fpHref,fpTypes} from '../dist/lib/fp-links.js';
+import {readingSnapshot,rememberFpReading,fpReadingLimit,fpSessionKey} from '../dist/lib/fp-session.js';
 
 const a={type:'code',props:{file:'a.cpp',ranges:[{from:10,to:20}]}};
 test('reading cache is bounded, records source/render state and excludes window geometry',()=>{
@@ -25,7 +25,7 @@ test('close, history reopening and refresh retain the latest reading without syn
   const factory=(props,context)=>{
    const view={props,context,panel:{dataset:{},style:{}},reading:{...context.restore},snapshot(){return {box:{left:1,top:2,width:500,height:300},...this.reading};},close(){context.onClose(this.snapshot());}};opened.push(view);return view;
   };
-  const module=await import('../src/scripts/fp-navigation.js?reading-latest');module.registerFpType('code',factory);module.initFpNavigation();module.showFloatingPanels([a]);
+  const module=await import('../dist/scripts/fp-navigation.js?reading-latest');module.registerFpType('code',factory);module.initFpNavigation();module.showFloatingPanels([a]);
   const first=opened.at(-1);first.reading={wrap:true,documentWrap:false,documentMode:'rendered',documents:[{page:2,top:1440,left:85}],scroll:[{top:900,left:40},{top:0,left:0},{top:1440,left:85}]};
   const before=writes;for(let i=0;i<30;i++)first.context.onStateChange();assert.equal(writes,before);assert.equal(frames.size,1);
   for(const fn of frames.values())fn();frames.clear();assert.equal(writes,before+1,'all scroll updates share one frame persistence pass');
@@ -35,7 +35,7 @@ test('close, history reopening and refresh retain the latest reading without syn
   const reopened=opened.at(-1);assert.equal(reopened.context.restore.scroll[0].top,955);assert.equal(reopened.context.restore.documents[0].page,2);assert.equal(reopened.context.restore.documentWrap,false);assert.equal(reopened.context.restore.box,undefined,'closed reading cache does not override new window placement');
   reopened.close();
   const session=JSON.parse(storage.get(key));session.entries=[{id:'saved-a',state:a,modal:true,parentId:null,snapshot:{scroll:[{top:333,left:7}],documentMode:'source'}}];storage.set(key,JSON.stringify(session));
-  const refreshed=await import('../src/scripts/fp-navigation.js?reading-active-priority');refreshed.registerFpType('code',factory);refreshed.initFpNavigation();assert.equal(opened.at(-1).context.restore.scroll[0].top,333,'live session snapshot takes priority over an older reading cache');opened.at(-1).close();
+  const refreshed=await import('../dist/scripts/fp-navigation.js?reading-active-priority');refreshed.registerFpType('code',factory);refreshed.initFpNavigation();assert.equal(opened.at(-1).context.restore.scroll[0].top,333,'live session snapshot takes priority over an older reading cache');opened.at(-1).close();
   fpTypes.readingPage={fields:['href'],parse:props=>props,validate:props=>assert.equal(typeof props.href,'string'),format:props=>props};module.registerFpType('readingPage',factory);
   const page={type:'readingPage',props:{href:'chapter.html'}};module.showFloatingPanels([page]);const pageView=opened.at(-1);pageView.reading={documentMode:'rendered',documents:[{page:3,top:800,left:0}],scroll:[{top:800,left:0}]};pageView.close();module.showFloatingPanels([page]);assert.equal(opened.at(-1).context.restore.documents[0].page,3,'future page FP types reuse the same reading cache');opened.at(-1).close();
  }finally{delete fpTypes.readingPage;for(const [key,descriptor]of saved)if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}

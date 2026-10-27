@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {parseFpUrl,fpHref,withFpState,validateFpState} from '../src/lib/fp-links.js';
-import {codeHref,blockHref,internalCodeTargets} from '../src/lib/code-links.js';
+import {parseFpUrl,fpHref,withFpState,validateFpState} from '../dist/lib/fp-links.js';
+import {codeHref,blockHref,internalCodeTargets} from '../dist/lib/code-links.js';
 
 const base='https://example.test/article.html?theme=light#mdx-3';
 const a={type:'code',props:{file:'src/a.cpp',ranges:[{from:10,to:20}]}},b={type:'code',props:{file:'src/b.cpp',ranges:[]}};

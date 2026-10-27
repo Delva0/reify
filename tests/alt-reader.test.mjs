@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {toggleReaderAnnotation} from '../src/scripts/reader-annotation.js';
-import {watchAlt} from '../src/lib/alt.js';
+import {toggleReaderAnnotation} from '../dist/scripts/reader-annotation.js';
+import {watchAlt} from '../dist/lib/alt.js';
 
 const saved=new Map(),events=new Map();let selected=false,measurements=0;
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};

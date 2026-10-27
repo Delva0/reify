@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {bindTreeWidth,initTreeWidth} from '../src/scripts/tree-width.js';
+import {bindTreeWidth,initTreeWidth} from '../dist/scripts/tree-width.js';
 
 const saved=new Map(),windowResize=new Set(),observers=[],stored=new Map([['tree-width','300'],['github-files-width','280']]);
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};

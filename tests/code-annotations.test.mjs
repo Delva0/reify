@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {resolveCodeAnnotations,normalizeCodeAnnotations,normalizeCodeSelector} from '../src/lib/code-annotations.js';
-import {normalizeCodeBlock,serializeCodeBlock} from '../src/lib/code-block.js';
+import {resolveCodeAnnotations,normalizeCodeAnnotations,normalizeCodeSelector} from '../dist/lib/code-annotations.js';
+import {normalizeCodeBlock,serializeCodeBlock} from '../dist/lib/code-block.js';
 const code='const value = "你好😀";\nreturn value + value;',at={line:2,text:'value',occurrence:2};
 const [range]=resolveCodeAnnotations(code,{notes:[{at,desc:'第二个值'}],links:[{at,href:'?fp=code&block=next'}],marks:[{at,color:'amber'}]});
 assert.equal(code.slice(range.start,range.end),'value');assert.equal(range.start,code.lastIndexOf('value'));assert.deepEqual(Object.keys(range.decorations),['note','link','mark']);

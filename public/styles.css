@@ -24,6 +24,7 @@
 html{scroll-padding-top:74px;scrollbar-gutter:stable}
 html.floating-modal-active,html.reader-annotation-capturing{overflow:hidden;overscroll-behavior:none}
 [data-floating-panel]{overscroll-behavior:contain}
+[data-floating-blocked]{pointer-events:none;user-select:none}
 :where([data-floating-panel]:not([data-floating-layer=title])){overflow:auto}
 body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.8 var(--sans)}
 a{color:inherit;text-decoration:underline solid var(--underline);text-decoration-thickness:1px;text-underline-offset:4px}
@@ -212,10 +213,9 @@ td code{font-size:12px}
 
 /* Shared code dialog: solid panel, frosted page behind it */
 dialog{--panel-max-width:min(1050px,95vw);--panel-max-height:min(760px,calc(100dvh - 128px));position:fixed;inset:0;z-index:70;margin:auto;padding:0;width:var(--panel-max-width);height:fit-content;max-height:var(--panel-max-height);max-width:var(--panel-max-width);border:1px solid var(--line);border-radius:0;background:var(--paper);color:var(--ink);overscroll-behavior:contain}
-dialog[open]{display:block}
+dialog[open]{display:flex;flex-direction:column;overflow:hidden}
 dialog[data-modal=false]{inset:auto;margin:0;z-index:60;min-width:min(240px,var(--panel-max-width));min-height:calc(var(--dialog-bar-height) + 2px);max-width:var(--panel-max-width);max-height:var(--panel-max-height);resize:both;overflow:hidden}
-dialog[data-modal=false][open]{display:flex;flex-direction:column}
-dialog[data-modal=false]>[data-source-code],dialog[data-modal=false]>[data-source-preview]{flex:1;min-height:0;max-height:none}
+dialog>[data-source-code],dialog>[data-source-preview]{flex:1;min-height:0}
 .floating-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 :root:not([data-theme=dark]) .floating-backdrop{background:rgba(0,0,0,.06)}
 .dialog-head{display:flex;flex-shrink:0;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);height:var(--dialog-bar-height);padding:10px 12px;cursor:default;touch-action:none;user-select:none}
@@ -264,8 +264,8 @@ dialog[data-modal=false]>[data-source-code],dialog[data-modal=false]>[data-sourc
 .document-error{grid-column:1/-1;margin:0;padding:24px;font-size:13px}
 [data-source-document]{min-height:0;overflow:hidden}
 [data-source-document]>.file-document{max-height:calc(var(--panel-max-height) - var(--dialog-bar-height) - 2px)}
-dialog[data-modal=false]>[data-source-document]{flex:1}
-dialog[data-modal=false]>[data-source-document]>.file-document{height:100%;max-height:none}
+dialog>[data-source-document]{flex:1}
+dialog>[data-source-document]>.file-document{height:100%}
 .code-block>[hidden],dialog>[hidden]{display:none!important}
 
 /* Demos and evidence use the same 12px panel inset */

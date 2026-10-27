@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {sidebarBootstrap,sidebarDefinitions} from '../src/lib/sidebar-state.js';
-import {initSidebar} from '../src/scripts/sidebars.js';
+import {sidebarBootstrap,sidebarDefinitions} from '../dist/lib/sidebar-state.js';
+import {initSidebar} from '../dist/scripts/sidebars.js';
 const element=()=>{
  const attributes=new Map(),listeners=new Map(),classes=new Set();
  return {dataset:{},focusCount:0,setAttribute:(key,value)=>attributes.set(key,value),getAttribute:key=>attributes.get(key)??null,hasAttribute:key=>attributes.has(key),addEventListener:(type,callback)=>listeners.set(type,callback),dispatch(type,event={}){listeners.get(type)?.(event);},focus(){this.focusCount++;},classList:{contains:value=>classes.has(value),remove:value=>classes.delete(value),toggle(value){if(classes.has(value)){classes.delete(value);return false;}classes.add(value);return true;}}};

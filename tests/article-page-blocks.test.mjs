@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {articleCodeBlock} from '../src/scripts/article-pages.js';
+import {articleCodeBlock} from '../dist/scripts/article-pages.js';
 const saved=new Map(),install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,configurable:true,writable:true});};
 const local={id:'local'},first={id:'one'},second={id:'two'},recovered={id:'retry'};let reads=0,failed=true;
 try{

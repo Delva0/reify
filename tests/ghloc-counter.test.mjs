@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {NonemptyLines} from '../src/vendor/ghloc-counter/nonempty-lines.js';
+import {NonemptyLines} from '../dist/vendor/ghloc-counter/nonempty-lines.js';
 const fixtures=[['',0],[' \t\r\n\n',0],['a\n\n b\t\nend',3],['a\r\nb\r\n',2],['中文\n// comment\n',2],['line\n\x00binary',1],['\x0c',1]];
 for(const [text,expected]of fixtures){
  const bytes=Buffer.from(text);

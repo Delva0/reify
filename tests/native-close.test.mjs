@@ -19,7 +19,7 @@ try{
  install('MutationObserver',class{constructor(callback){mutation=callback;}observe(){}});
  install('document',{body:{},addEventListener:(type,fn)=>documentEvents.set(type,fn)});
  install('addEventListener',(type,fn)=>windowEvents.set(type,fn));
- const {registerFloatingPanel,unregisterFloatingPanel}=await import('../src/scripts/floating-panels.js?native-close');
+ const {registerFloatingPanel,unregisterFloatingPanel}=await import('../dist/scripts/floating-panels.js?native-close');
  const note=new Panel('note',85),editor=new Panel('editor',200),hidden=new Panel('hidden',300,true);
  for(const panel of [note,editor,hidden])registerFloatingPanel(panel,event=>{closed.push([panel.name,event.type]);panel.hidden=true;});
  assert.equal(watchers.length,1,'one browser close watcher represents the complete FP stack');

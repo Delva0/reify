@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {loadSourceData,sourceText,bundledSource} from '../src/scripts/sources.js';
+import {loadSourceData,sourceText,bundledSource} from '../dist/scripts/sources.js';
 
 test('incremental article changes keep source snapshots and highlighting isolated by source URL and commit',async()=>{
  const saved=new Map(),install=(key,value)=>{saved.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});};

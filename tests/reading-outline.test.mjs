@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {bindReadingOutline} from '../src/scripts/reading-outline.js';
+import {bindReadingOutline} from '../dist/scripts/reading-outline.js';
 
 const saved=new Map(),frames=new Map(),observers=[];let frame=0;
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};

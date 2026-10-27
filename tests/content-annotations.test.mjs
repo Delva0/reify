@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import {codeToHast} from 'shiki';
 import katex from 'katex';
-import {codeAnnotations} from '../src/build/code-annotations.mjs';
-import {decorateCodeLine,codeNodeLength,hastCodeTree as tree} from '../src/lib/code-note-ranges.js';
-import {mathMacros,mathStrict,mathTrust} from '../src/math-style.mjs';
+import {codeAnnotations} from '../dist/build/code-annotations.js';
+import {decorateCodeLine,codeNodeLength,hastCodeTree as tree} from '../dist/lib/code-note-ranges.js';
+import {mathMacros,mathStrict,mathTrust} from '../dist/math-style.js';
 
 const plain=node=>{
  const children=(node.children||[]).flatMap(child=>child.properties?.['data-note-description']||child.properties?.['data-code-annotation-group']!==undefined?child.children.map(plain):[plain(child)]);

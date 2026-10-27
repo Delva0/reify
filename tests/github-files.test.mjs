@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {readRepositoryTree,readFile,encodeFilePath,indexTree,MAX_SOURCE_BYTES} from '../src/lib/github-files.js';
+import {readRepositoryTree,readFile,encodeFilePath,indexTree,MAX_SOURCE_BYTES} from '../dist/lib/github-files.js';
 
 assert.equal(encodeFilePath('src/a #中文.cpp'),'src/a%20%23%E4%B8%AD%E6%96%87.cpp');
 const entry=(path,type='blob')=>({path,type,size:10});

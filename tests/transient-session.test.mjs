@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {transientSession,nodeReference,resolveNode,rangeReference,resolveRange,panelGeometry,restorePanelGeometry} from '../src/lib/transient-session.js';
+import {transientSession,nodeReference,resolveNode,rangeReference,resolveRange,panelGeometry,restorePanelGeometry} from '../dist/lib/transient-session.js';
 
 const saved=new Map(),storage=new Map();
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};

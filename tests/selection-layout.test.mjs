@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {initSelection,retainSelection,releaseSelection} from '../src/lib/selection.js';
+import {initSelection,retainSelection,releaseSelection} from '../dist/lib/selection.js';
 
 const listeners=new Map(),classes=new Set(),saved=new Map();
 let currentRange,collapsed=false,constructed=0;

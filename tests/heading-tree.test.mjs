@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {parseFragment} from 'parse5';
-import {nestHeadings} from '../src/lib/heading-tree.js';
-import {headingTreeHtml,headingTreeItemsHtml} from '../src/lib/heading-tree-html.js';
+import {nestHeadings} from '../dist/lib/heading-tree.js';
+import {headingTreeHtml,headingTreeItemsHtml} from '../dist/lib/heading-tree-html.js';
 
 const elements=node=>(node.childNodes||[]).filter(child=>child.tagName);
 const attr=(node,name)=>node.attrs.find(value=>value.name===name)?.value;

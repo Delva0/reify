@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {pathToFileURL} from 'node:url';
-import {prepareArticleSource,articleSourceAsset} from '../src/build/article-sources.mjs';
+import {prepareArticleSource,articleSourceAsset} from '../dist/build/article-sources.js';
 
 const root=await fs.mkdtemp(path.join(os.tmpdir(),'reify-article-source-'));
 try{
@@ -24,7 +24,7 @@ try{
  await assert.rejects(prepareArticleSource('../private.mdx',site),/源文件无效/);
  await fs.writeFile(path.join(output,'first.html'),'<script id="article-pages" type="application/json">'+JSON.stringify({source:original})+'</script>');
  await fs.writeFile(path.join(output,'nested','second.html'),'<script type="application/json" id="article-pages">'+JSON.stringify({source:markdown})+'</script>');
- const isolated=await import('../src/build/article-sources.mjs?config-instance');
+ const isolated=await import('../dist/build/article-sources.js?config-instance');
  await isolated.copyArticleSources(pathToFileURL(output+path.sep),site);
  const published=await fs.readdir(path.join(output,'data/article-sources'));
  assert.deepEqual(published.sort(),[path.basename(original.href),path.basename(markdown.href)].sort(),'only current rendered manifests publish sources; stale cached versions are omitted');

@@ -8,12 +8,18 @@ cd reify
 ```
 
 ```sh
+# Node.js 24 or newer
 npm ci
+npm run typecheck
 npm test
 npm run build
 ```
 
 The minimal example contains ordinary articles without a repository dependency. H1 creates logical pages; formulas, inline notes, and named CodeBlocks use the same components as a larger blog.
+
+All first-party framework modules in `src/`, including navigation, persistence, rendering, workers, build integrations and the CLI, are TypeScript. `npm run typecheck` checks the strict browser, worker and tool projects, compile-time contract tests and Astro diagnostics for the minimal example. URL, storage and annotation inputs retain runtime validation. Custom FP types extend `FpPropsMap` in `reify/lib/data-types.js`, register their URL descriptor in `fpTypes` and their factory through `registerFpType`; the contract tests include an example.
+
+`npm run compile` generates runtime JavaScript, source maps and declarations in `dist/`, then copies Astro components and vendor assets. Public imports keep their `.js` paths; existing `reify/build/*.mjs` imports map to the compiled `.js` modules. The root `.mjs` entrypoints contain only compatibility bootstraps. The CLI compiles a source checkout before tests, builds and content checks, and watches runtime sources during development. Published packages use the generated runtime and do not require a TypeScript loader. `npm ci` prepares a checkout; `npm pack` checks types and rebuilds before packaging. Run `npm test` (or `node cli.mjs test --root examples/minimal`) to test the generated runtime.
 
 An application depends on Reify and owns its configuration:
 
@@ -22,7 +28,7 @@ import {defineReifyConfig} from 'reify/config';
 export default defineReifyConfig({root:new URL('.',import.meta.url)});
 ```
 
-Its `src/content.config.mjs` exports `collections` from `reify/content`. `reify.config.json` selects `content`, `public`, standalone `pages`, and optional `repositories`. `components` registers application-owned MDX components by name and file path; `scripts` registers application client entrypoints. Topic-specific formula aliases and file maps are also supplied by the application.
+Its `src/content.config.ts` exports `collections` from `reify/content`. `reify.config.json` selects `content`, `public`, standalone `pages`, and optional `repositories`. `components` registers application-owned MDX components by name and file path; `scripts` registers application client entrypoints. Topic-specific formula aliases and file maps are also supplied by the application.
 
 A standalone page can set `group` to a display label to collect its H1 pages under one collapsible navigation branch. Without `group`, its H1 pages remain direct navigation entries.
 

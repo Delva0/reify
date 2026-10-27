@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import {renderDocument} from '../src/workers/document-render.js';
-import {prepareDocument} from '../src/build/document-markup.mjs';
-import {paginateArticle} from '../src/build/article-pages.mjs';
+import {renderDocument} from '../dist/workers/document-render.js';
+import {prepareDocument} from '../dist/build/document-markup.js';
+import {paginateArticle} from '../dist/build/article-pages.js';
 import {parseFragment} from 'parse5';
 
 const attr=(node,name)=>node.attrs?.find(item=>item.name===name)?.value;

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {initTips} from '../src/scripts/tips.js';
+import {initTips} from '../dist/scripts/tips.js';
 const saved=new Map(),events=new Map();
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
 class Control{

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {initAnnotations} from '../src/scripts/annotations.js';
-import {altHeld} from '../src/lib/alt.js';
+import {initAnnotations} from '../dist/scripts/annotations.js';
+import {altHeld} from '../dist/lib/alt.js';
 
 const saved=new Map(),documentEvents=new Map(),windowEvents=new Map(),timers=new Map();
 let timerId=0,underPointer;

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {floatingLayer,registerFloatingPanel,raiseFloatingPanel,initFloatingPanels} from '../src/scripts/floating-panels.js';
+import {floatingLayer,registerFloatingPanel,raiseFloatingPanel,initFloatingPanels} from '../dist/scripts/floating-panels.js';
 const saved=new Map(),events=new Map(),windowEvents=new Map(),closed=[];
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
 class Panel{

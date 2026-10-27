@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {readingPosition,restoreReadingPosition,rangeBackground} from '../src/lib/reading-position.js';
+import {readingPosition,restoreReadingPosition,rangeBackground} from '../dist/lib/reading-position.js';
 
 const area={scrollTop:0,getBoundingClientRect:()=>({top:100})};
 const entry=(from,to,top,height)=>({from,to,node:{getBoundingClientRect:()=>({top:100+top-area.scrollTop,bottom:100+top-area.scrollTop+height,height})}});

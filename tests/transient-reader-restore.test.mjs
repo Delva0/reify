@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {initReaderAnnotation} from '../src/scripts/reader-annotation.js';
-import {transientSession,nodeReference,rangeReference} from '../src/lib/transient-session.js';
+import {initReaderAnnotation} from '../dist/scripts/reader-annotation.js';
+import {transientSession,nodeReference,rangeReference} from '../dist/lib/transient-session.js';
 
 const saved=new Map(),storage=new Map(),events=new Map();let focuses=0,visibleParents;
 const install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};

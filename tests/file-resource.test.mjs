@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import {fileResource,createFileResourceCache,serializeFileResources} from '../src/lib/file-resource.js';
-import {isExternalLink,linkKind} from '../src/lib/links.js';
-import {resourceLanguage} from '../src/lib/code-language.js';
+import {fileResource,createFileResourceCache,serializeFileResources} from '../dist/lib/file-resource.js';
+import {isExternalLink,linkKind} from '../dist/lib/links.js';
+import {resourceLanguage} from '../dist/lib/code-language.js';
 const context={repository:'owner/repo',commit:'fixed'};
 const metadata={source:{etag:'"</script><script>text</script>"'}},serialized=serializeFileResources(metadata);assert(!serialized.includes('<'));assert.deepEqual(JSON.parse(serialized),metadata,'web response metadata cannot end the inline JSON element');
 assert.equal(fileResource('src/a #中文.cpp',context).url,'https://raw.githubusercontent.com/owner/repo/fixed/src/a%20%23%E4%B8%AD%E6%96%87.cpp');

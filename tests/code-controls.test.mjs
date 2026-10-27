@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {setCodeText,codeText,copyCode,codeIcon} from '../src/scripts/code-controls.js';
+import {setCodeText,codeText,copyCode,codeIcon} from '../dist/scripts/code-controls.js';
 const descriptors=new Map(),install=(key,value)=>{descriptors.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});};
 class Node{
  constructor(namespaceURI='http://www.w3.org/2000/svg'){this.namespaceURI=namespaceURI;this.childNodes=[];this.attributes={};this.dataset={};}

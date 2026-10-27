@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {formatTextAnnotation,sourceLabel} from '../src/lib/reader-location.js';
-import {wrapText} from '../src/scripts/reader-image.js';
+import {formatTextAnnotation,sourceLabel} from '../dist/lib/reader-location.js';
+import {wrapText} from '../dist/scripts/reader-image.js';
 
 const context={title:'架构与运行机制',repository:'hicann/example',commit:'a'.repeat(40),headings:['架构与运行机制','2. 数据模型'],file:'content/example/version.mdx',source:{line:19,column:1,endLine:20,endColumn:8},url:'https://example.test/example.html#mdx-3',zone:'正文',locator:'#mdx-3::text(0):2 → #mdx-3::text(0):7 (UTF-16)',offset:'article text[2:7]',text:'T = (name, τ, s)\n  保留缩进、𝜏、😀'};
 const comment='如何确定所有权？\n请给出释放顺序。';

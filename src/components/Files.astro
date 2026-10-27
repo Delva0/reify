@@ -1,6 +1,6 @@
 ---
 import CodeBlock from './CodeBlock.astro';
-import {sourceProps} from '../markdown.mjs';
+import {sourceProps} from '../markdown.js';
 const {repo}=Astro.props;
 const items=Astro.locals.site?.fileMaps[repo]||[];
 ---

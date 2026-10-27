@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {webDocumentRestriction,externalPageTarget} from '../src/lib/web-navigation.js';
-import {fpHref} from '../src/lib/fp-links.js';
+import {webDocumentRestriction,externalPageTarget} from '../dist/lib/web-navigation.js';
+import {fpHref} from '../dist/lib/fp-links.js';
 
 test('only conclusive response headers identify unavailable external reading views',()=>{
  for(const values of [{'X-Frame-Options':'SAMEORIGIN'},{'X-Frame-Options':'DENY'},{'Content-Security-Policy':"frame-ancestors 'none'"},{'Content-Security-Policy':"frame-ancestors 'self'"}])assert.equal(webDocumentRestriction(new Headers(values)),'embedding');
@@ -14,7 +14,7 @@ test('cached capabilities route normal clicks to native tabs before any FP is cr
  const link=href=>({dataset:{},getAttribute:()=>href,hasAttribute:()=>false,closest:selector=>selector.startsWith('.document,')});
  try{
   let requests=0;globalThis.fetch=async()=>{requests++;return new Response(JSON.stringify({version:1,pages:{},external:[denied]}));};
-  const policy=await import('../src/scripts/web-document-index.js?capabilities-test');
+  const policy=await import('../dist/scripts/web-document-index.js?capabilities-test');
   assert.equal(externalPageTarget(link(denied),{button:0},base,base,policy.opensExternalWebPage),null,'before metadata arrives, behavior is unchanged');
   await policy.loadWebDocumentIndex();await policy.loadWebDocumentIndex();assert.equal(requests,1);
   assert.equal(externalPageTarget(link(denied+'#about'),{button:0},base,base,policy.opensExternalWebPage),denied+'#about');

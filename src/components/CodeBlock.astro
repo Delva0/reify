@@ -1,11 +1,11 @@
 ---
 import {Code} from 'astro:components';
 import CodeTools from './CodeTools.astro';
-import {sourceProps} from '../markdown.mjs';
-import {codeAnnotations} from '../build/code-annotations.mjs';
+import {sourceProps} from '../markdown.js';
+import {codeAnnotations} from '../build/code-annotations.js';
 import {codeBlockId} from '../lib/code-block-id.js';
 import {normalizeCodeBlock,serializeCodeBlock} from '../lib/code-block.js';
-import {loadCodeSource} from '../build/file-resources.mjs';
+import {loadCodeSource} from '../build/file-resources.js';
 import {documentFormat} from '../lib/document-format.js';
 import DocumentFragment from './DocumentFragment.astro';
 const block=normalizeCodeBlock({...Astro.props,id:Astro.props.id||codeBlockId(Astro.props.code??Astro.props.src??'',Astro.props)});

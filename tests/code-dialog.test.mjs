@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {createCodeDialog} from '../src/scripts/code-dialog.js';
-import {setDocumentMode} from '../src/scripts/document-view.js';
+import {createCodeDialog} from '../dist/scripts/code-dialog.js';
+import {setDocumentMode} from '../dist/scripts/document-view.js';
 
 const saved=new Map(),install=(name,value)=>{saved.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
 const dataKey=name=>name.slice(5).replace(/-([a-z])/g,(_all,letter)=>letter.toUpperCase());

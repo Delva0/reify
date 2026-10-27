@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
- floatingLayer,floatingParent,registerFloatingPanel,unregisterFloatingPanel,
+ floatingLayer,floatingParent,floatingBlocked,registerFloatingPanel,unregisterFloatingPanel,
  setFloatingParent,setFloatingModal,raiseFloatingPanel
-} from '../src/scripts/floating-panels.js';
+} from '../dist/scripts/floating-panels.js';
 
 const globals=new Map();
 const install=(name,value)=>{globals.set(name,Object.getOwnPropertyDescriptor(globalThis,name));Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});};
@@ -54,15 +54,27 @@ test('floating panels preserve their partial-order, dismissal and modal invarian
 
   await t.test('detaching the child leaves it above its modal parent and backdrop',()=>{
    const title=make('title',{priority:'title'}),a=make('a',{modal:true,explicit:true}),b=make('b',{parent:a,modal:true,explicit:true});
-   assert.equal(backdrops().length,2);assert(page.inert);assert(a.inert);assert(!b.inert);assert(!title.inert);
+   assert.equal(backdrops().length,2);assert(floatingBlocked(page));assert(floatingBlocked(a));assert(!floatingBlocked(b));assert(!floatingBlocked(title));
    const before=[floatingLayer(a),floatingLayer(b)];setFloatingModal(b,false);
    assert.deepEqual([floatingLayer(a),floatingLayer(b)],before,'mode does not determine order');
    assert.equal(floatingParent(b),a);assert.equal(backdrops().length,1);assert(floatingLayer(b)>floatingLayer(a));
-   assert(floatingLayer(b)>Number(backdrops()[0].style.zIndex));assert(page.inert);assert(!a.inert);assert(!b.inert);
+   assert(floatingLayer(b)>Number(backdrops()[0].style.zIndex));assert(floatingBlocked(page));assert(!floatingBlocked(a));assert(!floatingBlocked(b));
    const content=new Element('child-content');b.append(content);pointer(content);pointer(a);
-   assert(live.has(b));assert(floatingLayer(b)>floatingLayer(a));assert(!b.inert,'focusing the parent does not bury or disable its detached child');
+   assert(live.has(b));assert(floatingLayer(b)>floatingLayer(a));assert(!floatingBlocked(b),'focusing the parent does not bury or disable its detached child');
    setFloatingModal(b,true);assert.equal(backdrops().length,2);setFloatingModal(b,false);setFloatingModal(a,false);
-   assert.equal(backdrops().length,0);assert(!page.inert);assert(left.inert,'pre-existing inert state is preserved');clean();
+   assert.equal(backdrops().length,0);assert(!floatingBlocked(page));assert(left.inert,'pre-existing inert state is preserved');clean();
+  });
+
+  await t.test('detaching releases background interaction without rewriting native inert',()=>{
+   let value=page.inert,writes=0;Object.defineProperty(page,'inert',{configurable:true,get:()=>value,set:next=>{value=next;writes++;}});
+   const a=make('dragged',{modal:true,explicit:true});assert(floatingBlocked(page));
+   pointer(a);raiseFloatingPanel(a);assert.equal(writes,0,'modal layers never invalidate the native inert accessibility subtree');
+   document.dispatchEvent({type:'paneldragstart',target:a});setFloatingModal(a,false);
+   assert.equal(backdrops().length,0);assert.equal(a.dataset.modal,'false');assert(!floatingBlocked(page),'background activation is immediate, without deferred inert work on release');
+   document.dispatchEvent({type:'paneldragend',target:a});assert.equal(writes,0);assert(left.inert,'pre-existing inert state survives drag release');
+   setFloatingModal(a,true);document.dispatchEvent({type:'paneldragstart',target:a});assert(floatingBlocked(page));
+   unregisterFloatingPanel(a);live.delete(a);a.remove();assert(!floatingBlocked(page),'closing a captured panel cannot leave the background disabled');
+   clean();Object.defineProperty(page,'inert',{configurable:true,writable:true,value:false});
   });
 
   await t.test('each modal owns the backdrop immediately below its own layer',()=>{

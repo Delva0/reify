@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createPageCache} from '../src/lib/page-cache.js';
-import {patchChildren} from '../src/lib/page-dom.js';
+import {createPageCache} from '../dist/lib/page-cache.js';
+import {patchChildren} from '../dist/lib/page-dom.js';
 
 test('HTML page cache reuses hash targets, bounds memory, retries failures and rejects aborted content',async()=>{
  const calls=[];let failure=false,release;
@@ -17,7 +17,7 @@ test('HTML page cache reuses hash targets, bounds memory, retries failures and r
 test('article routing keeps hashes, external, downloads, new tabs and FP links on their native paths',async()=>{
  const previous=Object.getOwnPropertyDescriptor(globalThis,'document');Object.defineProperty(globalThis,'document',{value:{querySelector:()=>null},configurable:true});
  try{
-  const {pageLinkTarget}=await import('../src/scripts/page-navigation.js');
+  const {pageLinkTarget}=await import('../dist/scripts/page-navigation.js');
   const base='https://wiki.test/one.html',link=(href,{target='',download=false,floating=false,header=false,document=false}={})=>({target,getAttribute:()=>href,hasAttribute:()=>download,closest:selector=>selector==='[data-file-document]'?document:selector==='[data-floating-panel]'?floating:selector==='.repo-header'?header:null});
   for(const href of ['#section','one.html#section','https://other.test/two.html','file.pdf','?fp=code&file=a.cpp'])assert.equal(pageLinkTarget(link(href),base),null,href);
   assert.equal(pageLinkTarget(link('two.html',{target:'_blank'}),base),null);assert.equal(pageLinkTarget(link('two.html',{download:true}),base),null);

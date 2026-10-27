@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {linkPanelState} from '../src/lib/link-panels.js';
-import {parseFpUrl,fpHref} from '../src/lib/fp-links.js';
-import {readingContext,setReadingContext} from '../src/lib/reading-context.js';
+import {linkPanelState} from '../dist/lib/link-panels.js';
+import {parseFpUrl,fpHref} from '../dist/lib/fp-links.js';
+import {readingContext,setReadingContext} from '../dist/lib/reading-context.js';
 
 const base='https://wiki.test/runtime.html',click={button:0};
 const link=(href,{body=true,tree=false,download=false,target=''}={})=>({target,getAttribute:()=>href,hasAttribute:name=>name==='download'&&download,closest:selector=>selector.startsWith('.document,')?body:tree});
